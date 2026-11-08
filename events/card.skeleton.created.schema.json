@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/card.skeleton.created.schema.json",
+  "title": "CardSkeletonCreated",
+  "description": "data untuk card.skeleton.created v1. Penerbit: triage. Konsumen: narrative. Skor dan band hanya ditulis triage.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["paket_hash", "catalog_version", "algo_version", "kode"],
+  "properties": {
+    "paket_hash": {"$ref": "#/$defs/Sha256Ref"},
+    "catalog_version": {
+      "description": "Versi tiap katalog yang dipakai saat menghitung.",
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "algo_version": {"type": "string", "minLength": 1, "maxLength": 64},
+    "kode": {"$ref": "#/$defs/Kode"}
+  },
+  "$defs": {
+    "Sha256Ref": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "EvidenceId": {"type": "string", "pattern": "^EV-[A-Za-z0-9_-]+$"},
+    "Faktor": {
+      "title": "Faktor",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nama", "nilai", "alasan"],
+      "properties": {
+        "nama": {"type": "string", "minLength": 1},
+        "nilai": {"type": "integer"},
+        "alasan": {"type": "string"}
+      }
+    },
+    "Entitas": {
+      "title": "Entitas",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jenis", "nilai", "peran", "bukti"],
+      "properties": {
+        "jenis": {"type": "string", "minLength": 1},
+        "nilai": {"type": "string", "minLength": 1},
+        "peran": {"type": "string", "minLength": 1},
+        "bukti": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/EvidenceId"}}
+      }
+    },
+    "BuktiRef": {
+      "title": "BuktiRef",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {"$ref": "#/$defs/EvidenceId"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "Kode": {
+      "title": "Kode",
+      "description": "Bagian kartu yang dihitung deterministik oleh triage.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["judul", "pola", "skor", "band", "faktor", "entitas", "bukti"],
+      "properties": {
+        "judul": {"type": "string", "minLength": 1, "maxLength": 200},
+        "pola": {"type": "string", "pattern": "^P-[A-Z0-9-]+$"},
+        "skor": {"type": "integer", "minimum": 0, "maximum": 100},
+        "band": {"type": "string", "enum": ["KRITIS", "TINGGI", "SEDANG", "RENDAH"]},
+        "faktor": {"type": "array", "items": {"$ref": "#/$defs/Faktor"}},
+        "entitas": {"type": "array", "items": {"$ref": "#/$defs/Entitas"}},
+        "bukti": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/BuktiRef"}}
+      }
+    }
+  }
+}

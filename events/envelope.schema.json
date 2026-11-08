@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/envelope.schema.json",
+  "title": "Envelope",
+  "description": "Amplop untuk semua event Astria. Isi event ada di `data`; skemanya di <type>.schema.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "version", "occurred_at", "trace_id", "correlation", "data"],
+  "properties": {
+    "id": {
+      "description": "ID unik event. Dipakai sebagai Nats-Msg-Id dan kunci idempoten konsumen. UUID disarankan.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "type": {
+      "description": "Jenis event, mis. evidence.ingested. Subjek NATS = astria.<type>.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "version": {
+      "description": "Versi skema `data` untuk jenis ini. Field opsional baru tidak menaikkan versi.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurred_at": {
+      "description": "Waktu kejadian, UTC, RFC 3339.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "trace_id": {
+      "description": "ID trace W3C (32 heksadesimal) untuk menyambung log dan trace lintas layanan.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "correlation": {
+      "$ref": "#/$defs/Correlation"
+    },
+    "data": {
+      "description": "Isi event; divalidasi dengan skema per jenis.",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "Correlation": {
+      "title": "Correlation",
+      "description": "Kunci korelasi. Event tentang kartu membawa card_id dan version; urutan per card_id dijaga konsumen.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^IC-[0-9]{8}-[0-9]{3,}$"},
+        "version": {"description": "Versi kartu (bukan versi skema).", "type": "integer", "minimum": 1},
+        "job_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    }
+  }
+}

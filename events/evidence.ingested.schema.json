@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/evidence.ingested.schema.json",
+  "title": "EvidenceIngested",
+  "description": "data untuk evidence.ingested v1. Penerbit: ingest. Konsumen: triage. Tidak memuat seluruh ID bukti; triage mengambilnya lewat API per rentang.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_id", "count", "record_range", "batch_ref"],
+  "properties": {
+    "source_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "count": {"description": "Jumlah record bukti dalam batch.", "type": "integer", "minimum": 0},
+    "record_range": {
+      "title": "RecordRange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"type": "integer", "minimum": 0},
+        "to": {"type": "integer", "minimum": 0}
+      }
+    },
+    "batch_ref": {"description": "Rujukan API baca bukti untuk batch ini.", "type": "string", "minLength": 1, "maxLength": 256},
+    "alert_ids_count": {"type": "integer", "minimum": 0}
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "5d1c9a2e-3f4b-4c6d-8e7f-9a0b1c2d3e4f",
+  "type": "narration.completed",
+  "version": 1,
+  "occurred_at": "2026-11-10T02:36:12Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {"card_id": "IC-20261110-003", "version": 1},
+  "data": {
+    "attempt": 1,
+    "model": {"backend": "replay", "model_id": "replay-cache", "cache_hit": true, "prompt_versi": "narasi-v1"},
+    "narasi": {
+      "ringkasan": [
+        {
+          "klaim": "Akun svc-backup mengalami 20 kegagalan logon dari WS-HR-11.",
+          "bukti": ["EV-hb01-004217"],
+          "nilai_dikutip": {"TargetUserName": "svc-backup", "SrcIP": "10.20.8.31"}
+        }
+      ],
+      "hipotesis_utama": {"teks": "Akun layanan diduga diambil alih lewat tebakan kata sandi.", "bukti": ["EV-hb01-004231"]},
+      "hipotesis_tandingan": [
+        {"teks": "Skrip cadangan dengan kredensial kedaluwarsa.", "pembantah": "Tidak menjelaskan akun baru dan tugas terjadwal."}
+      ],
+      "belum_diketahui": ["Log WS-HR-11 tidak tersedia."]
+    },
+    "pemeriksa_siap": true
+  }
+}
