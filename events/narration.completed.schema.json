@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/narration.completed.schema.json",
+  "title": "NarrationCompleted",
+  "description": "data untuk narration.completed v1. Penerbit: narrative. Konsumen: verifier. Setiap klaim wajib menunjuk ID bukti.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["attempt", "model", "narasi", "pemeriksa_siap"],
+  "properties": {
+    "attempt": {"type": "integer", "minimum": 1, "maximum": 2},
+    "model": {"$ref": "#/$defs/ModelInfo"},
+    "narasi": {"$ref": "#/$defs/Narasi"},
+    "pemeriksa_siap": {"type": "boolean"}
+  },
+  "$defs": {
+    "EvidenceId": {"type": "string", "pattern": "^EV-[A-Za-z0-9_-]+$"},
+    "ModelInfo": {
+      "title": "ModelInfo",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "model_id", "cache_hit", "prompt_versi"],
+      "properties": {
+        "backend": {"type": "string", "enum": ["online", "lokal", "replay", "templat"]},
+        "model_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "cache_hit": {"type": "boolean"},
+        "prompt_versi": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    },
+    "Klaim": {
+      "title": "Klaim",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["klaim", "bukti"],
+      "properties": {
+        "klaim": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "bukti": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/EvidenceId"}},
+        "nilai_dikutip": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "Hipotesis": {
+      "title": "Hipotesis",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["teks", "bukti"],
+      "properties": {
+        "teks": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "bukti": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/EvidenceId"}}
+      }
+    },
+    "HipotesisTandingan": {
+      "title": "HipotesisTandingan",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["teks", "pembantah"],
+      "properties": {
+        "teks": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "pembantah": {"type": "string", "maxLength": 1000}
+      }
+    },
+    "Narasi": {
+      "title": "Narasi",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ringkasan", "hipotesis_utama", "hipotesis_tandingan", "belum_diketahui"],
+      "properties": {
+        "ringkasan": {"type": "array", "items": {"$ref": "#/$defs/Klaim"}},
+        "hipotesis_utama": {"$ref": "#/$defs/Hipotesis"},
+        "hipotesis_tandingan": {"type": "array", "items": {"$ref": "#/$defs/HipotesisTandingan"}},
+        "belum_diketahui": {"type": "array", "items": {"type": "string", "maxLength": 500}}
+      }
+    }
+  }
+}

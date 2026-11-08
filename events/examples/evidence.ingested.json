@@ -1,0 +1,15 @@
+{
+  "id": "0b7c1f0e-7a2e-4c8e-9d1e-3f3a2c4b5d61",
+  "type": "evidence.ingested",
+  "version": 1,
+  "occurred_at": "2026-11-10T02:20:04Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {"job_id": "ING-20261110-0042", "source_id": "hb01"},
+  "data": {
+    "source_id": "hb01",
+    "count": 4236,
+    "record_range": {"from": 1, "to": 4236},
+    "batch_ref": "/internal/v1/evidence?job_id=ING-20261110-0042",
+    "alert_ids_count": 17
+  }
+}

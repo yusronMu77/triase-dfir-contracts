@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: Astria identity internal API (Tahap 0)
+  version: 0.1.0
+  description: |
+    Bagian minimal identity untuk Tahap 0: token layanan EdDSA dan kunci publik.
+    Login, sesi, pengguna, dan pairing ditambahkan di Tahap 2.
+
+    Autentikasi `POST /internal/v1/service-tokens` memakai HMAC-SHA256 dengan kunci layanan awal
+    (`ASTRIA_SERVICE_KEY`). String yang ditandatangani, dipisah baris baru:
+    `METHOD`, `PATH`, `X-Astria-Ts`, `X-Astria-Nonce`, hex SHA-256 isi permintaan.
+    Jendela waktu 300 detik; nonce sekali pakai dalam jendela.
+servers:
+  - url: http://identity:8000
+paths:
+  /internal/v1/service-tokens:
+    post:
+      operationId: issueServiceToken
+      summary: Terbitkan JWT EdDSA umur pendek untuk satu audiens
+      security: [{serviceHmac: []}]
+      parameters:
+        - {name: X-Astria-Service, in: header, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9-]*$"}}
+        - {name: X-Astria-Ts, in: header, required: true, schema: {type: integer}}
+        - {name: X-Astria-Nonce, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 64}}
+        - {name: X-Astria-Sig, in: header, required: true, schema: {type: string, pattern: "^[0-9a-f]{64}$"}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ServiceTokenRequest"}
+      responses:
+        "201":
+          description: Token diterbitkan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ServiceTokenResponse"}
+        "401":
+          description: Tanda tangan, cap waktu, atau nonce tidak valid
+          content:
+            application/json:
+              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+        "403":
+          description: Layanan tidak boleh meminta audiens ini
+          content:
+            application/json:
+              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+  /internal/v1/keys:
+    get:
+      operationId: listPublicKeys
+      summary: Kunci publik aktif (JWKS) untuk memverifikasi token layanan
+      responses:
+        "200":
+          description: JWKS
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Jwks"}
+components:
+  securitySchemes:
+    serviceHmac:
+      type: apiKey
+      in: header
+      name: X-Astria-Sig
+  schemas:
+    Actor:
+      description: Pengguna yang memicu aksi (klaim `act`). Kosong untuk aksi sistem.
+      type: object
+      additionalProperties: false
+      required: [sub, roles]
+      properties:
+        sub: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}
+        roles:
+          type: array
+          items: {type: string}
+        session_id: {type: string}
+    ServiceTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [audience]
+      properties:
+        audience: {type: string, pattern: "^svc:[a-z][a-z0-9-]*$"}
+        act: {$ref: "#/components/schemas/Actor"}
+    ServiceTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [token, token_type, expires_at]
+      properties:
+        token: {type: string}
+        token_type: {type: string, enum: [Bearer]}
+        expires_at: {type: string, format: date-time}
+    Jwk:
+      type: object
+      additionalProperties: false
+      required: [kty, crv, x, kid, alg, use]
+      properties:
+        kty: {type: string, enum: [OKP]}
+        crv: {type: string, enum: [Ed25519]}
+        x: {type: string}
+        kid: {type: string}
+        alg: {type: string, enum: [EdDSA]}
+        use: {type: string, enum: [sig]}
+    Jwks:
+      type: object
+      additionalProperties: false
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items: {$ref: "#/components/schemas/Jwk"}

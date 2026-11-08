@@ -8,23 +8,59 @@
 
 # Astria contracts
 
-Kontrak: snapshot OpenAPI, JSON Schema event, kartu v2, katalog event.
+Kontrak antarlayanan Astria: JSON Schema event, OpenAPI internal, dan model Pydantic hasil generasi (`astria_contracts`).
 
-> Status: kerangka awal, belum ada kode. Repo ini adalah submodule dari workspace `triase-dfir` (folder `contracts/`). Rancangan: `notes/2026-11-06-triase-dfir-app-common-dan-infra.md` di repo root. Lajur developer: 3.
-
-## Tech stack
-
-JSON Schema, OpenAPI, datamodel-code-generator, openapi-typescript
+> Status: Tahap 0, v0.1.0. Repo ini adalah submodule dari workspace `triase-dfir` (folder `contracts/`). Rancangan: `notes/2026-11-06-triase-dfir-app-common-dan-infra.md` bagian 3 di repo root. Lajur developer: 3; setiap perubahan butuh dua peninjau (pemilik dan konsumen).
 
 ## Isi
 
 ```text
-openapi/        snapshot OpenAPI per layanan
-events/         <type>.v1.schema.json, examples/, catalog.json
-card/           card-v2.schema.json
+events/envelope.schema.json        amplop semua event {id, type, version, occurred_at, trace_id, correlation, data}
+events/<type>.schema.json          skema `data` per jenis event
+events/examples/<type>.json        satu amplop valid per jenis (wajib; dipakai uji kontrak konsumen)
+events/catalog.json                jenis -> versi, subjek NATS, penerbit, konsumen; nama stream dan jendela duplikat
+openapi/common.yaml                /health, /ready, /metrics, bentuk galat seragam
+openapi/identity-internal.yaml     token layanan EdDSA (HMAC) dan kunci publik (Tahap 0)
+openapi/audit-internal.yaml        catat sinkron, baca bertahap, verifikasi rantai (Tahap 0)
+gen/python/astria_contracts/       model hasil datamodel-code-generator 0.90.0 (di-commit, JANGAN diedit)
+card/                              kartu v2 (Tahap 1)
 ```
 
-Tambah field = tetap `v1` dan CHANGELOG bagian Added; hapus atau ubah arti field = event `v2` berdampingan dengan `v1`.
+| Event | Versi | Subjek | Penerbit | Konsumen |
+|---|---|---|---|---|
+| `evidence.ingested` | 1 | `astria.evidence.ingested` | ingest | triage |
+| `card.skeleton.created` | 1 | `astria.card.skeleton.created` | triage | narrative |
+| `narration.completed` | 1 | `astria.narration.completed` | narrative | verifier |
+| `card.verified` | 1 | `astria.card.verified` | verifier | ticket |
+| `audit.record` | 1 | `astria.audit.record` | semua | audit |
+
+## Aturan perubahan
+
+- Tambah field opsional: versi tetap, catat di CHANGELOG bagian Added.
+- Hapus field atau ubah arti field: jenis event baru (atau versi baru berdampingan), bukan mengubah yang lama.
+- Setiap skema punya contoh di `events/examples/`; contoh wajib lolos skema dan model hasil generasi.
+- Setelah mengubah skema: `uv run python scripts/generate.py`, lalu commit hasilnya. CI membangkitkan ulang dan gagal bila ada selisih.
+- Rilis = tag git `vX.Y.Z` di `main`. Konsumen menaikkan tag di `[tool.uv.sources]`, lalu `uv lock`.
+
+## Perintah
+
+```text
+uv sync
+uv run python scripts/generate.py   # bangkitkan ulang gen/python
+uv run pytest                       # skema valid, contoh lolos skema dan model
+```
+
+Dari kontainer dev: `pwsh ../devenv/scripts/dev.ps1 py uv run pytest` di folder ini.
+
+## Pemakaian di layanan
+
+```python
+from astria_contracts import EVENTS, Envelope, example
+from astria_contracts.events.evidence_ingested import EvidenceIngested
+
+spec = EVENTS["evidence.ingested"]          # versi, subjek NATS, model data
+EvidenceIngested.model_validate(example("evidence.ingested")["data"])
+```
 
 ## Alur git
 

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/card.verified.schema.json",
+  "title": "CardVerified",
+  "description": "data untuk card.verified v1. Penerbit: verifier. Konsumen: ticket. Status final pemeriksaan klaim terhadap bukti asli.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "percobaan", "klaim_total", "klaim_lolos", "ditolak", "policy_version", "checker_version", "model_terperiksa", "evidence_set_hash", "dokumen"],
+  "properties": {
+    "status": {"type": "string", "enum": ["LULUS", "SEBAGIAN", "TEMPLAT"]},
+    "percobaan": {"type": "integer", "minimum": 1, "maximum": 2},
+    "klaim_total": {"type": "integer", "minimum": 0},
+    "klaim_lolos": {"type": "integer", "minimum": 0},
+    "ditolak": {"type": "array", "items": {"$ref": "#/$defs/KlaimDitolak"}},
+    "policy_version": {"type": "string", "minLength": 1, "maxLength": 64},
+    "checker_version": {"type": "string", "minLength": 1, "maxLength": 64},
+    "model_terperiksa": {"type": "string", "minLength": 1, "maxLength": 128},
+    "evidence_set_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "dokumen": {"$ref": "#/$defs/DokumenKartu"}
+  },
+  "$defs": {
+    "KlaimDitolak": {
+      "title": "KlaimDitolak",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["klaim_index", "kode_gagal"],
+      "properties": {
+        "klaim_index": {"type": "integer", "minimum": 0},
+        "kode_gagal": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"}}
+      }
+    },
+    "DokumenKartu": {
+      "title": "DokumenKartu",
+      "description": "Kartu lengkap setelah kebijakan: kode dari triage, model setelah klaim yang gagal dibuang. Bentuk rinci = kartu v2 (Tahap 1).",
+      "type": "object",
+      "required": ["card_id", "version", "kode", "model"],
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^IC-[0-9]{8}-[0-9]{3,}$"},
+        "version": {"type": "integer", "minimum": 1},
+        "kode": {"type": "object"},
+        "model": {"type": "object"}
+      }
+    }
+  }
+}

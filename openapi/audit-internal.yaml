@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: Astria audit internal API (Tahap 0)
+  version: 0.1.0
+  description: |
+    Jalur sinkron (fail-closed) untuk aksi kritis, baca bertahap, dan verifikasi rantai.
+    Jalur asinkron memakai event `audit.record` di subjek `astria.audit.record`.
+    Autentikasi: token layanan EdDSA dengan `aud = svc:audit`.
+servers:
+  - url: http://audit:8000
+security: [{serviceToken: []}]
+paths:
+  /internal/v1/records:
+    post:
+      operationId: writeRecord
+      summary: Tulis satu catatan dan tunggu nomor urut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "../events/audit.record.schema.json"}
+      responses:
+        "201":
+          description: Tercatat
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RecordReceipt"}
+        "200":
+          description: Duplikat (kunci dan isi sama); mengembalikan nomor yang sudah ada
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RecordReceipt"}
+        "409":
+          description: payload_mismatch (kunci sama, isi berbeda)
+          content:
+            application/json:
+              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+        "422":
+          description: Payload tidak kanonik atau terlalu besar
+          content:
+            application/json:
+              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+        "503":
+          description: Basis data tidak tersedia; penerbit harus menggagalkan aksinya
+          content:
+            application/json:
+              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+    get:
+      operationId: listRecords
+      summary: Baca bertahap
+      parameters:
+        - {name: from_seq, in: query, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      responses:
+        "200":
+          description: Entri berurutan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RecordPage"}
+  /internal/v1/verify-jobs:
+    post:
+      operationId: verifyChain
+      summary: Verifikasi rantai (Tahap 0 dijalankan langsung dan selesai dalam satu permintaan)
+      responses:
+        "200":
+          description: Hasil verifikasi
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/VerifyResult"}
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RecordReceipt:
+      type: object
+      additionalProperties: false
+      required: [seq, entry_hash, recorded_at, duplicate]
+      properties:
+        seq: {type: integer, minimum: 0}
+        entry_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+        recorded_at: {type: string, format: date-time}
+        duplicate: {type: boolean}
+    Entry:
+      type: object
+      additionalProperties: false
+      required: [seq, occurred_at, recorded_at, actor, actor_type, action, target_type, target_id, via, idempotency_key, payload, payload_hash, prev_hash, entry_hash]
+      properties:
+        seq: {type: integer, minimum: 0}
+        occurred_at: {type: string, format: date-time}
+        recorded_at: {type: string, format: date-time}
+        actor: {type: string}
+        actor_type: {type: string}
+        action: {type: string}
+        target_type: {type: string}
+        target_id: {type: string}
+        via: {type: string}
+        idempotency_key: {type: string}
+        payload: {type: object}
+        payload_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+        prev_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+        entry_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+    RecordPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_from_seq]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Entry"}
+        next_from_seq: {type: [integer, "null"]}
+    VerifyResult:
+      type: object
+      additionalProperties: false
+      required: [status, from_seq, to_seq, checked, ok]
+      properties:
+        status: {type: string, enum: [selesai]}
+        from_seq: {type: integer}
+        to_seq: {type: [integer, "null"]}
+        checked: {type: integer}
+        ok: {type: boolean}
+        first_bad_seq: {type: [integer, "null"]}
+        reason: {type: [string, "null"]}

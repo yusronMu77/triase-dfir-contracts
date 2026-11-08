@@ -1,0 +1,19 @@
+{
+  "id": "7a3e5c1b-2d4f-4a6b-9c8d-0e1f2a3b4c5d",
+  "type": "audit.record",
+  "version": 1,
+  "occurred_at": "2026-11-10T02:30:00Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {"card_id": "IC-20261110-003", "version": 1},
+  "data": {
+    "idempotency_key": "ticket-action-IC-20261110-003-1-claim",
+    "occurred_at": "2026-11-10T02:29:58Z",
+    "actor": "usr_01J9Z3QK4M",
+    "actor_type": "user",
+    "action": "ticket.claimed",
+    "target_type": "ticket",
+    "target_id": "IC-20261110-003",
+    "via": "ui",
+    "payload": {"from_status": "baru", "to_status": "diproses"}
+  }
+}

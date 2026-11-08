@@ -1,0 +1,25 @@
+{
+  "id": "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b",
+  "type": "card.verified",
+  "version": 1,
+  "occurred_at": "2026-11-10T02:37:05Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {"card_id": "IC-20261110-003", "version": 1},
+  "data": {
+    "status": "LULUS",
+    "percobaan": 1,
+    "klaim_total": 1,
+    "klaim_lolos": 1,
+    "ditolak": [],
+    "policy_version": "verifikasi-1.0.0",
+    "checker_version": "verifier-1.0.0",
+    "model_terperiksa": "replay-cache",
+    "evidence_set_hash": "sha256:1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+    "dokumen": {
+      "card_id": "IC-20261110-003",
+      "version": 1,
+      "kode": {"judul": "Dugaan pengambilalihan akun layanan svc-backup di WS-ADM-04", "skor": 71, "band": "KRITIS"},
+      "model": {"ringkasan": [{"klaim": "Akun svc-backup mengalami 20 kegagalan logon dari WS-HR-11.", "bukti": ["EV-hb01-004217"]}]}
+    }
+  }
+}

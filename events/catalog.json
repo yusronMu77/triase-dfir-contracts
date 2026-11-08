@@ -1,0 +1,10 @@
+{
+  "stream": {"name": "ASTRIA", "subjects": ["astria.>"], "duplicate_window_seconds": 120},
+  "events": [
+    {"type": "evidence.ingested", "version": 1, "subject": "astria.evidence.ingested", "producer": "ingest", "consumers": ["triage"], "schema": "evidence.ingested.schema.json", "example": "examples/evidence.ingested.json"},
+    {"type": "card.skeleton.created", "version": 1, "subject": "astria.card.skeleton.created", "producer": "triage", "consumers": ["narrative"], "schema": "card.skeleton.created.schema.json", "example": "examples/card.skeleton.created.json"},
+    {"type": "narration.completed", "version": 1, "subject": "astria.narration.completed", "producer": "narrative", "consumers": ["verifier"], "schema": "narration.completed.schema.json", "example": "examples/narration.completed.json"},
+    {"type": "card.verified", "version": 1, "subject": "astria.card.verified", "producer": "verifier", "consumers": ["ticket"], "schema": "card.verified.schema.json", "example": "examples/card.verified.json"},
+    {"type": "audit.record", "version": 1, "subject": "astria.audit.record", "producer": "*", "consumers": ["audit"], "schema": "audit.record.schema.json", "example": "examples/audit.record.json"}
+  ]
+}

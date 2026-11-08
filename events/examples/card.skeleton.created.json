@@ -1,0 +1,25 @@
+{
+  "id": "9b2e6d10-1c4a-4f7e-8d3b-5a6c7d8e9f01",
+  "type": "card.skeleton.created",
+  "version": 1,
+  "occurred_at": "2026-11-10T02:35:12Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {"card_id": "IC-20261110-003", "version": 1},
+  "data": {
+    "paket_hash": "sha256:4c1e0b7a9f2d8e3c5b6a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c",
+    "catalog_version": {"alert_penjelasan": 14, "pola_insiden": 6, "langkah": 9, "skor": 3},
+    "algo_version": "triage-1.0.0",
+    "kode": {
+      "judul": "Dugaan pengambilalihan akun layanan svc-backup di WS-ADM-04",
+      "pola": "P-AKUN-DIAMBILALIH",
+      "skor": 71,
+      "band": "KRITIS",
+      "faktor": [{"nama": "level_aturan", "nilai": 30, "alasan": "level tertinggi: high"}],
+      "entitas": [{"jenis": "akun", "nilai": "svc-backup", "peran": "DIDUGA_TERBOBOL", "bukti": ["EV-hb01-004217", "EV-hb01-004231"]}],
+      "bukti": [
+        {"id": "EV-hb01-004217", "sha256": "1f3a5c7e9b2d4f6a8c0e2a4c6e8a0c2e4a6c8e0a2c4e6a8c0e2a4c6e8a0c2e4a"},
+        {"id": "EV-hb01-004231", "sha256": "2e4c6a8e0c2a4e6c8a0e2c4a6e8c0a2e4c6a8e0c2a4e6c8a0e2c4a6e8c0a2e4c"}
+      ]
+    }
+  }
+}

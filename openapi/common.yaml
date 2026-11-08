@@ -1,0 +1,83 @@
+openapi: 3.1.0
+info:
+  title: Astria common service endpoints
+  version: 0.1.0
+  description: |
+    Endpoint yang wajib ada di setiap layanan Astria (dipasang oleh astria_common.app.create_app).
+    Tanpa autentikasi; hanya terjangkau dari jaringan internal dan orkestrator.
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Liveness dan status komponen
+      responses:
+        "200":
+          description: Proses hidup. Status komponen ada di `checks`.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Health"}
+  /ready:
+    get:
+      operationId: ready
+      summary: Readiness; 503 bila dependensi wajib belum siap
+      responses:
+        "200":
+          description: Siap menerima trafik
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Health"}
+        "503":
+          description: Belum siap
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Health"}
+  /metrics:
+    get:
+      operationId: metrics
+      summary: Metrik Prometheus (format teks)
+      responses:
+        "200":
+          description: Metrik
+          content:
+            text/plain: {}
+components:
+  schemas:
+    CheckStatus:
+      type: string
+      enum: [ok, degraded, down]
+    Check:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: {$ref: "#/components/schemas/CheckStatus"}
+        detail: {type: string, maxLength: 500}
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, service, version, env, checks]
+      properties:
+        status: {$ref: "#/components/schemas/CheckStatus"}
+        service: {type: string}
+        version: {type: string}
+        env:
+          type: string
+          enum: [dev, demo, prod, test]
+        checks:
+          type: object
+          additionalProperties: {$ref: "#/components/schemas/Check"}
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: {type: string, pattern: "^[A-Z][A-Z0-9_]*$"}
+        message: {type: string, maxLength: 500}
+        trace_id: {type: string}
+    Error:
+      description: Bentuk galat seragam semua layanan.
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: {$ref: "#/components/schemas/ErrorBody"}
