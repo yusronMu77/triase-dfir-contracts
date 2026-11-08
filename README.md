@@ -58,7 +58,7 @@ Dari kontainer dev: `pwsh ../devenv/scripts/dev.ps1 py uv run pytest` di folder 
 from astria_contracts import EVENTS, Envelope, example
 from astria_contracts.events.evidence_ingested import EvidenceIngested
 
-spec = EVENTS["evidence.ingested"]          # versi, subjek NATS, model data
+spec = EVENTS["evidence.ingested"]  # versi, subjek NATS, model data
 EvidenceIngested.model_validate(example("evidence.ingested")["data"])
 ```
 
