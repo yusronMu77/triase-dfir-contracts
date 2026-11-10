@@ -6,6 +6,13 @@
 
 - `evidence.ingested` v1: field opsional `file_sha256` (SHA-256 berkas sumber) dan `batch_sha256` (SHA-256 gabungan `record_sha256` dalam `record_range`), keduanya hex huruf kecil 64 karakter. Versi event tetap 1 (aditif). Contoh mendapat kedua field (nilai sintetis) dan `batch_ref` ke `/svc/v1/jobs/{job_id}/alerts`; nilai lain tidak berubah. Kebutuhan dari ingest#2.
 
+## [0.2.0] - 2026-11-10
+
+### Added
+
+- Event `narration.retry_requested` v1 (subjek `astria.narration.retry_requested`, penerbit verifier, konsumen narrative): `attempt` selalu 2 dan `kegagalan` berisi `klaim_no` serta kode gagal saja, tanpa teks klaim atau kutipan log. Mengikuti rancangan narrative bagian 3.3 dan verifier bagian 5.7.
+- `card.skeleton.created`: field opsional `kode.teknik_attack` (`id` teknik ATT&CK dan `taktik`) dan `kode.temuan_korelasi` (`K-...`), dipakai verifier untuk pemeriksaan 6 (verifier bagian 5.6). Opsional, jadi versi event tetap 1.
+
 ## [0.1.0] - 2026-11-08
 
 ### Added

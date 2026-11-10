@@ -10,7 +10,7 @@
 
 Kontrak antarlayanan Astria: JSON Schema event, OpenAPI internal, dan model Pydantic hasil generasi (`astria_contracts`).
 
-> Status: Tahap 0, v0.1.0. Repo ini adalah submodule dari workspace `triase-dfir` (folder `contracts/`). Rancangan: `notes/2026-11-06-triase-dfir-app-common-dan-infra.md` bagian 3 di repo root. Lajur developer: 3; setiap perubahan butuh dua peninjau (pemilik dan konsumen).
+> Status: Tahap 1, v0.2.0. Repo ini adalah submodule dari workspace `triase-dfir` (folder `contracts/`). Rancangan: `notes/2026-11-06-triase-dfir-app-common-dan-infra.md` bagian 3 di repo root. Lajur developer: 3; setiap perubahan butuh dua peninjau (pemilik dan konsumen).
 
 ## Isi
 
@@ -31,6 +31,7 @@ card/                              kartu v2 (Tahap 1)
 | `evidence.ingested` | 1 | `astria.evidence.ingested` | ingest | triage |
 | `card.skeleton.created` | 1 | `astria.card.skeleton.created` | triage | narrative |
 | `narration.completed` | 1 | `astria.narration.completed` | narrative | verifier |
+| `narration.retry_requested` | 1 | `astria.narration.retry_requested` | verifier | narrative |
 | `card.verified` | 1 | `astria.card.verified` | verifier | ticket |
 | `audit.record` | 1 | `astria.audit.record` | semua | audit |
 

@@ -10,6 +10,7 @@ from astria_contracts.events.card_skeleton_created import CardSkeletonCreated
 from astria_contracts.events.card_verified import CardVerified
 from astria_contracts.events.evidence_ingested import EvidenceIngested
 from astria_contracts.events.narration_completed import NarrationCompleted
+from astria_contracts.events.narration_retry_requested import NarrationRetryRequested
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,9 @@ EVENTS: dict[str, EventSpec] = {
     "evidence.ingested": EventSpec("evidence.ingested", 1, "astria.evidence.ingested", EvidenceIngested),
     "card.skeleton.created": EventSpec("card.skeleton.created", 1, "astria.card.skeleton.created", CardSkeletonCreated),
     "narration.completed": EventSpec("narration.completed", 1, "astria.narration.completed", NarrationCompleted),
+    "narration.retry_requested": EventSpec(
+        "narration.retry_requested", 1, "astria.narration.retry_requested", NarrationRetryRequested
+    ),
     "card.verified": EventSpec("card.verified", 1, "astria.card.verified", CardVerified),
     "audit.record": EventSpec("audit.record", 1, "astria.audit.record", AuditRecord),
 }

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/narration.retry_requested.schema.json",
+  "title": "NarrationRetryRequested",
+  "description": "data untuk narration.retry_requested v1. Penerbit: verifier. Konsumen: narrative. Dikirim bila percobaan 1 punya klaim gagal; hanya kode kegagalan, tanpa teks klaim atau kutipan log.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attempt",
+    "kegagalan"
+  ],
+  "properties": {
+    "attempt": {
+      "description": "Nomor percobaan yang diminta; selalu 2.",
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 2
+    },
+    "kegagalan": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Kegagalan"
+      }
+    }
+  },
+  "$defs": {
+    "Kegagalan": {
+      "title": "Kegagalan",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "klaim_no",
+        "kode"
+      ],
+      "properties": {
+        "klaim_no": {
+          "description": "Indeks klaim (mulai 0) menurut urutan pemeriksa: ringkasan, hipotesis_utama, tiap tandingan lalu pembantahnya, belum_diketahui.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "kode": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        }
+      }
+    }
+  }
+}

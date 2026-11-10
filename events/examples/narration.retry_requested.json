@@ -1,0 +1,15 @@
+{
+  "id": "7c3d2b1a-0f9e-4d8c-b7a6-5e4f3d2c1b0a",
+  "type": "narration.retry_requested",
+  "version": 1,
+  "occurred_at": "2026-11-10T02:36:40Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {"card_id": "IC-20261110-003", "version": 1},
+  "data": {
+    "attempt": 2,
+    "kegagalan": [
+      {"klaim_no": 0, "kode": "BERTENTANGAN_DENGAN_KODE"},
+      {"klaim_no": 2, "kode": "VALID_TAPI_SALAH"}
+    ]
+  }
+}

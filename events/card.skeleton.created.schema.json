@@ -65,7 +65,27 @@
         "band": {"type": "string", "enum": ["KRITIS", "TINGGI", "SEDANG", "RENDAH"]},
         "faktor": {"type": "array", "items": {"$ref": "#/$defs/Faktor"}},
         "entitas": {"type": "array", "items": {"$ref": "#/$defs/Entitas"}},
-        "bukti": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/BuktiRef"}}
+        "bukti": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/BuktiRef"}},
+        "teknik_attack": {
+          "description": "Teknik ATT&CK dari tag alert. Opsional (v0.2.0); verifier menolak klaim yang menyebut teknik di luar daftar ini.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/TeknikAttack"}
+        },
+        "temuan_korelasi": {
+          "description": "Kode aturan korelasi yang terpicu (K-...). Opsional (v0.2.0); verifier menolak klaim yang menyebut temuan di luar daftar ini.",
+          "type": "array",
+          "items": {"type": "string", "pattern": "^K-[A-Z0-9-]+$"}
+        }
+      }
+    },
+    "TeknikAttack": {
+      "title": "TeknikAttack",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "taktik"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"},
+        "taktik": {"type": "string", "pattern": "^[a-z]+(-[a-z]+)*$"}
       }
     }
   }
