@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -25,5 +27,5 @@ class NarrationRetryRequested(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    attempt: int = Field(..., description="Nomor percobaan yang diminta; selalu 2.", ge=2, le=2)
+    attempt: Literal[2] = Field(..., description="Nomor percobaan yang diminta; selalu 2.")
     kegagalan: list[Kegagalan] = Field(..., min_length=1)

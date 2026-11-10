@@ -12,9 +12,7 @@
   "properties": {
     "attempt": {
       "description": "Nomor percobaan yang diminta; selalu 2.",
-      "type": "integer",
-      "minimum": 2,
-      "maximum": 2
+      "const": 2
     },
     "kegagalan": {
       "type": "array",
