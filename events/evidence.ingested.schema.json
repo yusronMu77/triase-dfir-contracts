@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://astria.local/contracts/events/evidence.ingested.schema.json",
   "title": "EvidenceIngested",
-  "description": "data untuk evidence.ingested v1. Penerbit: ingest. Konsumen: triage. Tidak memuat seluruh ID bukti; triage mengambilnya lewat API per rentang.",
+  "description": "data untuk evidence.ingested v1. Penerbit: ingest. Konsumen: triage. Tidak memuat seluruh ID bukti; triage mengambilnya lewat API per rentang. file_sha256 dan batch_sha256 memungkinkan konsumen memeriksa keutuhan bukti.",
   "type": "object",
   "additionalProperties": false,
   "required": ["source_id", "count", "record_range", "batch_ref"],
@@ -20,6 +20,8 @@
       }
     },
     "batch_ref": {"description": "Rujukan API baca bukti untuk batch ini.", "type": "string", "minLength": 1, "maxLength": 256},
-    "alert_ids_count": {"type": "integer", "minimum": 0}
+    "alert_ids_count": {"type": "integer", "minimum": 0},
+    "file_sha256": {"description": "SHA-256 (hex huruf kecil) bytes mentah seluruh berkas sumber. Sama untuk semua batch dari berkas yang sama. Opsional demi kompatibilitas; ingest selalu mengisi.", "type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "batch_sha256": {"description": "SHA-256 (hex huruf kecil) dari record_sha256 tiap bukti dalam record_range, diurutkan record_no, dipisah satu karakter baris baru (LF). Opsional demi kompatibilitas; ingest selalu mengisi.", "type": "string", "pattern": "^[0-9a-f]{64}$"}
   }
 }

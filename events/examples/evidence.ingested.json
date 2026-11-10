@@ -9,7 +9,9 @@
     "source_id": "hb01",
     "count": 4236,
     "record_range": {"from": 1, "to": 4236},
-    "batch_ref": "/internal/v1/evidence?job_id=ING-20261110-0042",
-    "alert_ids_count": 17
+    "batch_ref": "/svc/v1/jobs/ING-20261110-0042/alerts?from=1&to=4236",
+    "alert_ids_count": 17,
+    "file_sha256": "47214f698f2bb793a35f564cd26dc91ba1db642244b28279c192efadcb685a2a",
+    "batch_sha256": "fa1ee66fbf88bc31078205fc4bfec75df4d889f85eea22241061709d564c56b6"
   }
 }
