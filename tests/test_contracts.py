@@ -62,6 +62,30 @@ def test_data_rejects_claim_without_evidence() -> None:
         EVENTS["narration.completed"].model.model_validate(env["data"])
 
 
+@pytest.mark.parametrize(
+    "data",
+    [{"attempt": 1, "kegagalan": [{"klaim_no": 0, "kode": "TANPA_BUKTI"}]}, {"attempt": 2, "kegagalan": []}],
+    ids=["attempt-1", "tanpa-kegagalan"],
+)
+def test_retry_requires_attempt_2_and_failures(data: dict) -> None:
+    with pytest.raises(Exception, match="attempt|kegagalan"):
+        EVENTS["narration.retry_requested"].model.model_validate(data)
+
+
+def test_kode_without_attack_fields_is_still_valid() -> None:
+    data = example("card.skeleton.created")["data"]
+    for field in ("teknik_attack", "temuan_korelasi"):
+        del data["kode"][field]
+    EVENTS["card.skeleton.created"].model.model_validate(data)
+
+
+def test_kode_rejects_malformed_technique() -> None:
+    data = example("card.skeleton.created")["data"]
+    data["kode"]["teknik_attack"] = [{"id": "T1110.1", "taktik": "credential-access"}]
+    with pytest.raises(Exception, match="pattern"):
+        EVENTS["card.skeleton.created"].model.model_validate(data)
+
+
 @pytest.mark.parametrize("path", sorted((ROOT / "openapi").glob("*.yaml")), ids=lambda p: p.name)
 def test_openapi_is_3_1(path: Path) -> None:
     spec = yaml.safe_load(path.read_text(encoding="utf-8"))
