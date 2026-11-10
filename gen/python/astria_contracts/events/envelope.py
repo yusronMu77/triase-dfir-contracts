@@ -18,6 +18,8 @@ class Correlation(BaseModel):
     card_id: str | None = Field(None, pattern="^IC-[0-9]{8}-[0-9]{3,}$")
     version: int | None = Field(None, description="Versi kartu (bukan versi skema).", ge=1)
     job_id: str | None = Field(None, max_length=64, min_length=1)
+    digest_id: str | None = Field(None, description="Digest dari scheduler (v0.3.0).", pattern="^DG-[0-9]{8}-[0-9]{4}$")
+    case_id: str | None = Field(None, description="Kasus DFIR (v0.3.0).", pattern="^CS-[0-9]{8}-[0-9]{3,}$")
     source_id: str | None = Field(None, max_length=64, min_length=1)
 
 
