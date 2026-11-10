@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/digest.published.schema.json",
+  "title": "DigestPublished",
+  "description": "data untuk digest.published v1. Penerbit: scheduler. Konsumen: notifier, api. Correlation membawa digest_id. Dokumen dibaca lewat scheduler /svc/v1/digests/{digest_id}/dokumen; event tidak memuat isi digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jenis",
+    "periode_mulai",
+    "periode_selesai",
+    "sha256",
+    "mode_narasi",
+    "terlambat"
+  ],
+  "properties": {
+    "jenis": {
+      "type": "string",
+      "enum": [
+        "harian"
+      ]
+    },
+    "periode_mulai": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "periode_selesai": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sha256": {
+      "description": "SHA-256 dokumen HTML digest.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "mode_narasi": {
+      "type": "string",
+      "enum": [
+        "online",
+        "lokal",
+        "replay",
+        "templat"
+      ]
+    },
+    "audit_head_hash": {
+      "description": "Kepala rantai audit saat digest dibuat; opsional selama audit belum punya endpoint kepala rantai.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "terlambat": {
+      "description": "Digest dijalankan setelah jadwalnya (mis. layanan sempat mati), masih dalam toleransi.",
+      "type": "boolean"
+    }
+  }
+}

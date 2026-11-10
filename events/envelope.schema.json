@@ -52,6 +52,8 @@
         "card_id": {"type": "string", "pattern": "^IC-[0-9]{8}-[0-9]{3,}$"},
         "version": {"description": "Versi kartu (bukan versi skema).", "type": "integer", "minimum": 1},
         "job_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "digest_id": {"description": "Digest dari scheduler (v0.3.0).", "type": "string", "pattern": "^DG-[0-9]{8}-[0-9]{4}$"},
+        "case_id": {"description": "Kasus DFIR (v0.3.0).", "type": "string", "pattern": "^CS-[0-9]{8}-[0-9]{3,}$"},
         "source_id": {"type": "string", "minLength": 1, "maxLength": 64}
       }
     }

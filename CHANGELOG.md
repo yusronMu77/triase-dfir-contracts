@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-10
+
+### Added
+
+- Event `digest.published` v1 (subjek `astria.digest.published`, penerbit scheduler, konsumen notifier dan api): `jenis`, periode, `sha256` dokumen, `mode_narasi`, `terlambat`, dan `audit_head_hash` opsional. Isi digest tidak ikut event. Mengikuti rancangan scheduler bagian 3.2.
+- Correlation amplop: kunci opsional `digest_id` (`DG-yyyymmdd-HHMM`) dan `case_id` (`CS-yyyymmdd-nnn`) untuk scheduler dan dfir. Aditif, versi amplop tetap.
+
 ## [0.2.0] - 2026-11-10
 
 ### Added

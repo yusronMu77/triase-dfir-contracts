@@ -72,6 +72,13 @@ def test_retry_requires_attempt_2_and_failures(data: dict) -> None:
         EVENTS["narration.retry_requested"].model.model_validate(data)
 
 
+def test_correlation_accepts_digest_and_case_ids_only_in_their_format() -> None:
+    env = example("digest.published")
+    Envelope.model_validate(env | {"correlation": {"case_id": "CS-20261111-001"}})
+    with pytest.raises(Exception, match="digest_id"):
+        Envelope.model_validate(env | {"correlation": {"digest_id": "DG-2026-11-11"}})
+
+
 def test_kode_without_attack_fields_is_still_valid() -> None:
     data = example("card.skeleton.created")["data"]
     for field in ("teknik_attack", "temuan_korelasi"):

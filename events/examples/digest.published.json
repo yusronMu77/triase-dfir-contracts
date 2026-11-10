@@ -1,0 +1,16 @@
+{
+  "id": "3a7e1c90-5b2d-4f6a-9c8e-1d2f3a4b5c6d",
+  "type": "digest.published",
+  "version": 1,
+  "occurred_at": "2026-11-11T00:00:42Z",
+  "trace_id": "8c1f2e3d4b5a69788796a5b4c3d2e1f0",
+  "correlation": {"digest_id": "DG-20261111-0700"},
+  "data": {
+    "jenis": "harian",
+    "periode_mulai": "2026-11-10T07:00:00+07:00",
+    "periode_selesai": "2026-11-11T07:00:00+07:00",
+    "sha256": "5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592",
+    "mode_narasi": "templat",
+    "terlambat": false
+  }
+}
