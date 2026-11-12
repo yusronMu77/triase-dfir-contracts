@@ -1,17 +1,33 @@
 openapi: 3.1.0
 info:
-  title: Astria identity internal API (Tahap 0)
-  version: 0.1.0
+  title: Astria identity internal API
+  version: 0.2.0
   description: |
-    Bagian minimal identity untuk Tahap 0: token layanan EdDSA dan kunci publik.
-    Login, sesi, pengguna, dan pairing ditambahkan di Tahap 2.
+    identity memiliki akun, peran, sesi, kode pairing, dan kunci layanan (note app-identity).
+    Versi 0.2.0 menambah login, sesi, pengguna, peran, pairing, dan rotasi kunci di atas token layanan Tahap 0.
 
-    Autentikasi `POST /internal/v1/service-tokens` memakai HMAC-SHA256 dengan kunci layanan awal
-    (`ASTRIA_SERVICE_KEY`). String yang ditandatangani, dipisah baris baru:
-    `METHOD`, `PATH`, `X-Astria-Ts`, `X-Astria-Nonce`, hex SHA-256 isi permintaan.
-    Jendela waktu 300 detik; nonce sekali pakai dalam jendela.
+    Autentikasi:
+    - `POST /internal/v1/service-tokens`: HMAC-SHA256 dengan kunci layanan (`serviceHmac`). String yang ditandatangani,
+      dipisah baris baru: `METHOD`, `PATH`, `X-Astria-Ts`, `X-Astria-Nonce`, hex SHA-256 isi permintaan. Jendela 300 detik;
+      nonce sekali pakai dalam jendela.
+    - `GET /internal/v1/keys` dan `/health`, `/ready`: tanpa autentikasi.
+    - Semua jalur lain: token layanan EdDSA dengan `aud = svc:identity` dari `svc:api` (`serviceToken`).
+      Jalur admin (daftar, buat, ubah pengguna, peran, rotasi kunci) wajib membawa klaim `act` dengan peran `admin`;
+      identity membaca ulang peran `act.sub` dari basis datanya dan tidak mempercayai `act.roles`.
+      Jalur dengan "reauth" menolak (403 `REAUTH_DIPERLUKAN`) bila `act.reauth_at` lebih tua dari jendela re-autentikasi.
+
+    Saat menerbitkan token dengan `act`, identity memverifikasi `act.sub` (akun aktif; 403 `ACT_DITOLAK` bila tidak),
+    mengganti `act.roles` dengan peran saat itu, dan mengisi `act.reauth_at` dari sesi `act.session_id` (bila ada).
+    Nilai `reauth_at` dari pemohon diabaikan.
+
+    Galat memakai bentuk seragam `common.yaml#/components/schemas/Error`. Kode galat khusus identity:
+    `KREDENSIAL_TIDAK_VALID` (401, pesan sama untuk akun yang tidak ada), `TERLALU_BANYAK_PERCOBAAN` (429, dengan `Retry-After`),
+    `REAUTH_DIPERLUKAN` (403), `PERAN_TIDAK_CUKUP` (403), `ACT_DITOLAK` (403), `AUDIENS_DITOLAK` (403),
+    `USERNAME_SUDAH_ADA` (409), `KODE_SUDAH_DIPAKAI` (409), `KODE_KEDALUWARSA` (410), `KODE_TIDAK_VALID` (401),
+    `KEBIJAKAN_KATA_SANDI` (422), `PENGGUNA_TIDAK_DITEMUKAN` (404), `AUDIT_TIDAK_TERSEDIA` (503, aksi kritis ditolak).
 servers:
   - url: http://identity:8000
+security: [{serviceToken: []}]
 paths:
   /internal/v1/service-tokens:
     post:
@@ -34,35 +50,249 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/ServiceTokenResponse"}
-        "401":
-          description: Tanda tangan, cap waktu, atau nonce tidak valid
-          content:
-            application/json:
-              schema: {$ref: "./common.yaml#/components/schemas/Error"}
-        "403":
-          description: Layanan tidak boleh meminta audiens ini
-          content:
-            application/json:
-              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
   /internal/v1/keys:
     get:
       operationId: listPublicKeys
-      summary: Kunci publik aktif (JWKS) untuk memverifikasi token layanan
+      summary: Kunci publik aktif dan overlap (JWKS) untuk memverifikasi token layanan
+      security: []
       responses:
         "200":
           description: JWKS
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Jwks"}
+  /internal/v1/auth/login:
+    post:
+      operationId: login
+      summary: Verifikasi kata sandi dan buka sesi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/LoginRequest"}
+      responses:
+        "200":
+          description: Sesi dibuka; `session_token` hanya muncul di jawaban ini
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LoginResponse"}
+        "401": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Cabut satu sesi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TokenRequest"}
+      responses:
+        "204": {description: Sesi dicabut}
+        "401": {$ref: "#/components/responses/Error"}
+  /internal/v1/auth/reauth:
+    post:
+      operationId: reauth
+      summary: Konfirmasi ulang kata sandi; mengisi reauth_at sesi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ReauthRequest"}
+      responses:
+        "200":
+          description: reauth_at diperbarui
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ReauthResponse"}
+        "401": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /internal/v1/sessions/introspect:
+    post:
+      operationId: introspectSession
+      summary: Status sesi dan peran saat itu (peran dibaca langsung, tanpa cache lebih dari 5 detik)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TokenRequest"}
+      responses:
+        "200":
+          description: "`active=false` untuk sesi tidak dikenal, dicabut, idle habis, atau lewat batas mutlak"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Introspection"}
+  /internal/v1/users:
+    get:
+      operationId: listUsers
+      summary: Daftar akun (admin)
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Halaman akun
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UserPage"}
+        "403": {$ref: "#/components/responses/Error"}
+    post:
+      operationId: createUser
+      summary: Buat akun (admin, reauth; dicatat sinkron ke audit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CreateUserRequest"}
+      responses:
+        "201":
+          description: Akun dibuat
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/User"}
+        "403": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/users/{user_id}:
+    parameters:
+      - {name: user_id, in: path, required: true, schema: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}}
+    get:
+      operationId: getUser
+      summary: Akun dan peran saat ini, langsung dari basis data (dipakai Command Facade)
+      responses:
+        "200":
+          description: Akun
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/User"}
+        "404": {$ref: "#/components/responses/Error"}
+    patch:
+      operationId: updateUser
+      summary: Ubah nama, status aktif, atau kata sandi (admin, reauth; nonaktif mencabut sesi dan menerbitkan identity.revoked)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/UpdateUserRequest"}
+      responses:
+        "200":
+          description: Akun diperbarui
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/User"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/users/{user_id}/roles:
+    parameters:
+      - {name: user_id, in: path, required: true, schema: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}}
+    put:
+      operationId: setUserRoles
+      summary: Ganti seluruh peran (admin, reauth; sinkron ke audit; mencabut sesi dan menerbitkan identity.revoked)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SetRolesRequest"}
+      responses:
+        "200":
+          description: Peran diganti
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/User"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/users/{user_id}/sessions:
+    parameters:
+      - {name: user_id, in: path, required: true, schema: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}}
+    delete:
+      operationId: revokeUserSessions
+      summary: Cabut semua sesi pengguna (admin, atau pemilik akun sendiri); menerbitkan identity.revoked
+      responses:
+        "204": {description: Semua sesi dicabut}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /internal/v1/pairing-codes:
+    post:
+      operationId: issuePairingCode
+      summary: Terbitkan kode pairing untuk pengguna dari klaim act; kode tampil sekali, hanya hash disimpan
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PairingCodeRequest"}
+      responses:
+        "201":
+          description: Kode terbit
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PairingCode"}
+        "403": {$ref: "#/components/responses/Error"}
+  /internal/v1/pairing/claim:
+    post:
+      operationId: claimPairingCode
+      summary: Klaim kode pairing (diteruskan api dari Gateway); sekali pakai, dibatasi 5 percobaan per 10 menit per external_id_hash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PairingClaim"}
+      responses:
+        "200":
+          description: Terklaim
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PairingClaimResult"}
+        "401": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "410": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /internal/v1/service-keys/{service}/rotate:
+    parameters:
+      - {name: service, in: path, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9-]*$"}}
+    post:
+      operationId: rotateServiceKey
+      summary: Rotasi kunci HMAC layanan (admin, reauth; sinkron ke audit). Kunci lama berstatus overlap selama jendela overlap
+      responses:
+        "201":
+          description: Kunci baru; nilainya hanya muncul di jawaban ini
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RotatedServiceKey"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
 components:
   securitySchemes:
     serviceHmac:
       type: apiKey
       in: header
       name: X-Astria-Sig
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Error:
+      description: Galat seragam
+      content:
+        application/json:
+          schema: {$ref: "./common.yaml#/components/schemas/Error"}
   schemas:
+    Role:
+      type: string
+      enum: [analis, dfir, pimpinan, admin]
     Actor:
-      description: Pengguna yang memicu aksi (klaim `act`). Kosong untuk aksi sistem.
+      description: |
+        Pengguna yang memicu aksi (klaim `act`). Kosong untuk aksi sistem. `reauth_at` hanya diisi identity dari sesi
+        `session_id`; nilai dari pemohon diabaikan.
       type: object
       additionalProperties: false
       required: [sub, roles]
@@ -72,6 +302,7 @@ components:
           type: array
           items: {type: string}
         session_id: {type: string}
+        reauth_at: {type: [string, "null"], format: date-time}
     ServiceTokenRequest:
       type: object
       additionalProperties: false
@@ -106,3 +337,159 @@ components:
         keys:
           type: array
           items: {$ref: "#/components/schemas/Jwk"}
+    ClientHashes:
+      type: object
+      additionalProperties: false
+      properties:
+        ip_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+        user_agent_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 128}
+        password: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+        client: {$ref: "#/components/schemas/ClientHashes"}
+    SessionUser:
+      type: object
+      additionalProperties: false
+      required: [user_id, username, roles]
+      properties:
+        user_id: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}
+        username: {type: string}
+        roles:
+          type: array
+          items: {$ref: "#/components/schemas/Role"}
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [session_token, expires_at, idle_expires_at, user]
+      properties:
+        session_token: {type: string, minLength: 43, maxLength: 43, description: "32 byte acak, base64url tanpa padding"}
+        expires_at: {type: string, format: date-time}
+        idle_expires_at: {type: string, format: date-time}
+        user: {$ref: "#/components/schemas/SessionUser"}
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: {type: string, minLength: 1, maxLength: 128}
+    ReauthRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token: {type: string, minLength: 1, maxLength: 128}
+        password: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+    ReauthResponse:
+      type: object
+      additionalProperties: false
+      required: [reauth_at]
+      properties:
+        reauth_at: {type: string, format: date-time}
+    Introspection:
+      type: object
+      additionalProperties: false
+      required: [active]
+      properties:
+        active: {type: boolean}
+        user_id: {type: string}
+        roles:
+          type: array
+          items: {$ref: "#/components/schemas/Role"}
+        reauth_at: {type: [string, "null"], format: date-time}
+        session_id: {type: string}
+    User:
+      type: object
+      additionalProperties: false
+      required: [user_id, username, display_name, active, roles, created_at, updated_at]
+      properties:
+        user_id: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}
+        username: {type: string}
+        display_name: {type: string}
+        active: {type: boolean}
+        roles:
+          type: array
+          items: {$ref: "#/components/schemas/Role"}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    UserPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/User"}
+        next_cursor: {type: [string, "null"]}
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [username, display_name, password, roles]
+      properties:
+        username: {type: string, pattern: "^[A-Za-z0-9._-]{3,64}$"}
+        display_name: {type: string, minLength: 1, maxLength: 128}
+        password: {type: string, minLength: 12, maxLength: 256, writeOnly: true}
+        roles:
+          type: array
+          minItems: 1
+          items: {$ref: "#/components/schemas/Role"}
+          uniqueItems: true
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name: {type: string, minLength: 1, maxLength: 128}
+        active: {type: boolean}
+        password: {type: string, minLength: 12, maxLength: 256, writeOnly: true}
+    SetRolesRequest:
+      type: object
+      additionalProperties: false
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          items: {$ref: "#/components/schemas/Role"}
+          uniqueItems: true
+    PairingCodeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        channel: {type: string, pattern: "^[a-z][a-z0-9-]*$", description: "Kanal yang dituju; kosong = bebas."}
+    PairingCode:
+      type: object
+      additionalProperties: false
+      required: [code, expires_at]
+      properties:
+        code: {type: string, pattern: "^[0-9A-HJKMNP-TV-Z]{8}$", description: "8 karakter Crockford base32 huruf besar"}
+        channel: {type: [string, "null"]}
+        expires_at: {type: string, format: date-time}
+    PairingClaim:
+      type: object
+      additionalProperties: false
+      required: [channel, external_id_hash, code]
+      properties:
+        channel: {type: string, pattern: "^[a-z][a-z0-9-]*$"}
+        external_id_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+        code: {type: string, minLength: 8, maxLength: 16}
+    PairingClaimResult:
+      type: object
+      additionalProperties: false
+      required: [user_id, claimed_at]
+      properties:
+        user_id: {type: string, pattern: "^usr_[A-Za-z0-9]+$"}
+        claimed_at: {type: string, format: date-time}
+    RotatedServiceKey:
+      type: object
+      additionalProperties: false
+      required: [service, key_id, key, previous_key_id, previous_not_after]
+      properties:
+        service: {type: string}
+        key_id: {type: string}
+        key: {type: string, pattern: "^[0-9a-f]{64}$", description: "32 byte hex; hanya tampil sekali"}
+        previous_key_id: {type: [string, "null"]}
+        previous_not_after: {type: [string, "null"], format: date-time}

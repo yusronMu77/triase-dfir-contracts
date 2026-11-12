@@ -8,8 +8,10 @@ from pydantic import BaseModel
 from astria_contracts.events.audit_record import AuditRecord
 from astria_contracts.events.card_skeleton_created import CardSkeletonCreated
 from astria_contracts.events.card_verified import CardVerified
+from astria_contracts.events.config_changed import ConfigChanged
 from astria_contracts.events.digest_published import DigestPublished
 from astria_contracts.events.evidence_ingested import EvidenceIngested
+from astria_contracts.events.identity_revoked import IdentityRevoked
 from astria_contracts.events.narration_completed import NarrationCompleted
 from astria_contracts.events.narration_retry_requested import NarrationRetryRequested
 
@@ -35,5 +37,7 @@ EVENTS: dict[str, EventSpec] = {
     ),
     "card.verified": EventSpec("card.verified", 1, "astria.card.verified", CardVerified),
     "digest.published": EventSpec("digest.published", 1, "astria.digest.published", DigestPublished),
+    "identity.revoked": EventSpec("identity.revoked", 1, "astria.identity.revoked", IdentityRevoked),
+    "config.changed": EventSpec("config.changed", 1, "astria.config.changed", ConfigChanged),
     "audit.record": EventSpec("audit.record", 1, "astria.audit.record", AuditRecord),
 }

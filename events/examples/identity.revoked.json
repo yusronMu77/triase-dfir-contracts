@@ -1,0 +1,14 @@
+{
+  "id": "6d0b7f1e-2a4c-4e8d-9b3a-5c7e9f1a2b3c",
+  "type": "identity.revoked",
+  "version": 1,
+  "occurred_at": "2026-11-12T03:10:00Z",
+  "trace_id": "0af7651916cd43dd8448eb211c80319c",
+  "correlation": {},
+  "data": {
+    "user_id": "usr_01J9Z3QK4M",
+    "reason": "peran_berubah",
+    "revoked_at": "2026-11-12T03:10:00Z",
+    "roles_after": ["analis"]
+  }
+}

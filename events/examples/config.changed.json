@@ -1,0 +1,14 @@
+{
+  "id": "018f6b2a-7c10-7d2e-9a51-3f0c2b7e9d11",
+  "type": "config.changed",
+  "version": 1,
+  "occurred_at": "2026-11-12T02:14:07Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlation": {},
+  "data": {
+    "scope": "catalog",
+    "kind": "bobot_skor",
+    "catalog_version": 4,
+    "content_hash": "sha256:9f2c4e7a1b3d5f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8"
+  }
+}

@@ -1,11 +1,17 @@
 openapi: 3.1.0
 info:
-  title: Astria audit internal API (Tahap 0)
-  version: 0.1.0
+  title: Astria audit internal API
+  version: 0.2.0
   description: |
-    Jalur sinkron (fail-closed) untuk aksi kritis, baca bertahap, dan verifikasi rantai.
+    Jalur sinkron (fail-closed) untuk aksi kritis, baca bertahap, tugas verifikasi rantai, ekspor JSONL, dan jangkar.
     Jalur asinkron memakai event `audit.record` di subjek `astria.audit.record`.
     Autentikasi: token layanan EdDSA dengan `aud = svc:audit`.
+
+    Izin: menulis (`POST /records`) boleh dari layanan mana pun. Membaca, verifikasi, ekspor, dan jangkar hanya dari
+    layanan pembaca (`svc:api`, `svc:scheduler`; dapat diatur). Bila token membawa klaim `act` (pengguna), perannya
+    harus `admin` atau `dfir` untuk baca; `admin` untuk verifikasi, ekspor, dan membuat jangkar.
+    Kode galat khusus: `PAYLOAD_MISMATCH` (409), `PAYLOAD_TIDAK_KANONIK` (422), `PAYLOAD_TERLALU_BESAR` (413),
+    `PERAN_TIDAK_CUKUP` (403), `PEMANGGIL_DITOLAK` (403), `TUGAS_TIDAK_DITEMUKAN` (404), `AUDIT_TIDAK_TERSEDIA` (503).
 servers:
   - url: http://audit:8000
 security: [{serviceToken: []}]
@@ -30,49 +36,122 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/RecordReceipt"}
-        "409":
-          description: payload_mismatch (kunci sama, isi berbeda)
-          content:
-            application/json:
-              schema: {$ref: "./common.yaml#/components/schemas/Error"}
-        "422":
-          description: Payload tidak kanonik atau terlalu besar
-          content:
-            application/json:
-              schema: {$ref: "./common.yaml#/components/schemas/Error"}
-        "503":
-          description: Basis data tidak tersedia; penerbit harus menggagalkan aksinya
-          content:
-            application/json:
-              schema: {$ref: "./common.yaml#/components/schemas/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "413": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
     get:
       operationId: listRecords
       summary: Baca bertahap
       parameters:
         - {name: from_seq, in: query, schema: {type: integer, minimum: 0, default: 0}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: actor, in: query, schema: {type: string, maxLength: 64}}
+        - {name: action, in: query, schema: {type: string, maxLength: 100}}
+        - {name: target_type, in: query, schema: {type: string, maxLength: 64}}
+        - {name: target_id, in: query, schema: {type: string, maxLength: 200}}
       responses:
         "200":
-          description: Entri berurutan
+          description: Entri berurutan menurut seq (yang cocok dengan semua filter)
           content:
             application/json:
               schema: {$ref: "#/components/schemas/RecordPage"}
+        "403": {$ref: "#/components/responses/Error"}
   /internal/v1/verify-jobs:
     post:
       operationId: verifyChain
-      summary: Verifikasi rantai (Tahap 0 dijalankan langsung dan selesai dalam satu permintaan)
+      summary: Mulai tugas verifikasi rantai. Menunggu hingga wait_ms; bila belum selesai, 202 dengan job_id untuk dipoll
+      parameters:
+        - {name: wait_ms, in: query, schema: {type: integer, minimum: 0, maximum: 10000, default: 2000}}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/VerifyRequest"}
       responses:
         "200":
-          description: Hasil verifikasi
+          description: Selesai dalam batas tunggu
           content:
             application/json:
               schema: {$ref: "#/components/schemas/VerifyResult"}
+        "202":
+          description: Masih berjalan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/VerifyResult"}
+        "403": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/verify-jobs/{job_id}:
+    get:
+      operationId: getVerifyJob
+      summary: Status atau hasil tugas verifikasi (termasuk first_bad_seq bila rusak dan anchor_match)
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, pattern: "^ver_[A-Za-z0-9]+$"}}
+      responses:
+        "200":
+          description: Tugas
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/VerifyResult"}
+        "404": {$ref: "#/components/responses/Error"}
+  /internal/v1/export:
+    get:
+      operationId: exportRecords
+      summary: Ekspor rentang entri sebagai JSONL (satu entri per baris, field sama dengan Entry), stream. Dapat diverifikasi offline dengan `audit verify-file`
+      parameters:
+        - {name: from_seq, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: to_seq, in: query, schema: {type: integer, minimum: 1}}
+      responses:
+        "200":
+          description: JSONL
+          content:
+            application/x-ndjson: {}
+        "403": {$ref: "#/components/responses/Error"}
+  /internal/v1/anchor/latest:
+    get:
+      operationId: latestAnchor
+      summary: Jangkar terakhir (seq dan entry_hash kepala rantai saat dijangkar)
+      responses:
+        "200":
+          description: Jangkar
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Anchor"}
+        "404": {$ref: "#/components/responses/Error"}
+  /internal/v1/anchors:
+    get:
+      operationId: listAnchors
+      summary: Daftar jangkar, terbaru dulu
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+      responses:
+        "200":
+          description: Jangkar
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AnchorPage"}
+    post:
+      operationId: createAnchor
+      summary: Buat jangkar sekarang dari kepala rantai (admin)
+      responses:
+        "201":
+          description: Jangkar dibuat
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Anchor"}
+        "404": {$ref: "#/components/responses/Error"}
 components:
   securitySchemes:
     serviceToken:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  responses:
+    Error:
+      description: Galat seragam
+      content:
+        application/json:
+          schema: {$ref: "./common.yaml#/components/schemas/Error"}
   schemas:
     RecordReceipt:
       type: object
@@ -111,15 +190,43 @@ components:
           type: array
           items: {$ref: "#/components/schemas/Entry"}
         next_from_seq: {type: [integer, "null"]}
+    VerifyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        from_seq: {type: integer, minimum: 1}
+        to_seq: {type: integer, minimum: 1}
     VerifyResult:
       type: object
       additionalProperties: false
-      required: [status, from_seq, to_seq, checked, ok]
+      required: [status, from_seq, checked]
       properties:
-        status: {type: string, enum: [selesai]}
+        job_id: {type: string, pattern: "^ver_[A-Za-z0-9]+$"}
+        status: {type: string, enum: [berjalan, selesai, gagal]}
         from_seq: {type: integer}
         to_seq: {type: [integer, "null"]}
         checked: {type: integer}
-        ok: {type: boolean}
+        ok: {type: [boolean, "null"], description: "null selama berjalan atau bila tugas gagal"}
         first_bad_seq: {type: [integer, "null"]}
-        reason: {type: [string, "null"]}
+        reason: {type: [string, "null"], description: "nomor_urut_berlubang, prev_hash_tidak_cocok, payload_hash_tidak_cocok, entry_hash_tidak_cocok"}
+        anchor_match: {type: [boolean, "null"], description: "null bila tidak ada jangkar dalam rentang"}
+        started_at: {type: string, format: date-time}
+        finished_at: {type: [string, "null"], format: date-time}
+    Anchor:
+      type: object
+      additionalProperties: false
+      required: [anchor_id, seq, entry_hash, created_at]
+      properties:
+        anchor_id: {type: integer, minimum: 1}
+        seq: {type: integer, minimum: 1}
+        entry_hash: {type: string, pattern: "^[0-9a-f]{64}$"}
+        created_at: {type: string, format: date-time}
+        exported_to: {type: [string, "null"]}
+    AnchorPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Anchor"}

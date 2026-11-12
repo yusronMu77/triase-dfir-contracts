@@ -1,0 +1,402 @@
+openapi: 3.1.0
+info:
+  title: Astria config internal API
+  version: 0.1.0
+  description: |
+    config memegang pengaturan Core yang dapat diubah admin, katalog berversi, kebijakan kanal, dan rahasia Core
+    (note app-config). Tidak ada listener publik; hanya jaringan `core`.
+
+    Dua kelompok jalur, keduanya memakai token layanan EdDSA dengan `aud = svc:config`:
+    - `/v1/...` (admin): hanya dari `svc:api` dengan klaim `act`. config memeriksa `act.roles` (`admin` untuk ubah dan rahasia;
+      `admin` atau `analis` untuk baca dan unggah katalog) dan `act.reauth_at` (diisi identity dari sesi) untuk aksi
+      yang memerlukan re-autentikasi (rahasia, aktivasi katalog): lebih tua dari 10 menit = 403 `REAUTH_DIPERLUKAN`.
+    - `/svc/v1/...` (konsumen): layanan inti membaca pengaturan efektif, katalog aktif, kebijakan kanal, dan rahasia model.
+
+    Perubahan, event `config.changed` (outbox), dan, untuk rahasia dan pengaturan, catatan audit sinkron (fail-closed)
+    terjadi berurutan: audit dicatat sebelum perubahan berlaku; bila audit tidak tersedia, perubahan ditolak 503.
+    Nilai rahasia tidak pernah muncul di respons, log, event, atau audit.
+
+    Kode galat: `KUNCI_TIDAK_DIKENAL` (404), `VERSI_KONFLIK` (409, `if_version` tidak cocok), `DIKUNCI_ENV` (409),
+    `KATALOG_BELUM_DITINJAU` (409), `KATALOG_TIDAK_DITEMUKAN` (404), `PENINJAU_SAMA_DENGAN_PENULIS` (403),
+    `REAUTH_DIPERLUKAN` (403), `PERAN_TIDAK_CUKUP` (403), `PEMANGGIL_DITOLAK` (403), `VALIDASI_GAGAL` (422),
+    `AUDIT_TIDAK_TERSEDIA` (503), `GATEWAY_TIDAK_TERSEDIA` (503), `PENYIMPANAN_TIDAK_TERSEDIA` (503).
+servers:
+  - url: http://config:8000
+security: [{serviceToken: []}]
+paths:
+  /v1/settings:
+    get:
+      operationId: listSettings
+      summary: Nilai efektif tiap kunci beserta sumbernya (bawaan, berkas, database, env); rahasia hanya tampil sebagai terisi
+      responses:
+        "200":
+          description: Pengaturan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SettingList"}
+        "403": {$ref: "#/components/responses/Error"}
+  /v1/settings/{key}:
+    parameters:
+      - {name: key, in: path, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", maxLength: 100}}
+    put:
+      operationId: putSetting
+      summary: Ubah nilai runtime (konkurensi optimistik lewat if_version; audit sinkron)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PutSettingRequest"}
+      responses:
+        "200":
+          description: Nilai baru
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SettingValue"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /v1/secrets/{key}:
+    parameters:
+      - {name: key, in: path, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", maxLength: 100}}
+    put:
+      operationId: putSecret
+      summary: Tulis rahasia Core (tulis-saja; admin, reauth; audit sinkron). Respons tidak memuat nilai
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PutSecretRequest"}
+      responses:
+        "200":
+          description: Rahasia tersimpan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SecretStatus"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /v1/secrets/gateway/{key}:
+    parameters:
+      - {name: key, in: path, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9_.-]*$", maxLength: 100}}
+    put:
+      operationId: forwardGatewaySecret
+      summary: Teruskan rahasia kanal ke gateway lewat memori tanpa menyimpannya di Core (admin, reauth; audit sinkron)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PutSecretRequest"}
+      responses:
+        "204": {description: Diteruskan}
+        "403": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /v1/channels/policy:
+    get:
+      operationId: listChannelPolicies
+      summary: Kebijakan kanal di sisi Core
+      responses:
+        "200":
+          description: Kebijakan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChannelPolicyList"}
+  /v1/channels/policy/{channel_id}:
+    parameters:
+      - {name: channel_id, in: path, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9-]*$", maxLength: 64}}
+    put:
+      operationId: putChannelPolicy
+      summary: Ubah kebijakan kanal (admin; audit sinkron)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PutChannelPolicyRequest"}
+      responses:
+        "200":
+          description: Kebijakan baru
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChannelPolicy"}
+        "403": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /v1/catalogs/{kind}/versions:
+    parameters:
+      - {name: kind, in: path, required: true, schema: {$ref: "#/components/schemas/CatalogKind"}}
+    get:
+      operationId: listCatalogVersions
+      summary: Versi dan statusnya (admin, analis)
+      responses:
+        "200":
+          description: Versi
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CatalogVersionList"}
+    post:
+      operationId: createCatalogDraft
+      summary: Unggah draf (dokumen JSON, divalidasi dengan skema jenisnya); status draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CreateCatalogDraftRequest"}
+      responses:
+        "201":
+          description: Draf dibuat
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CatalogVersion"}
+        "403": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+  /v1/catalogs/{kind}/versions/{version}/review:
+    parameters:
+      - {name: kind, in: path, required: true, schema: {$ref: "#/components/schemas/CatalogKind"}}
+      - {name: version, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      operationId: reviewCatalogVersion
+      summary: Tandai ditinjau (admin; peninjau harus berbeda dari penulis)
+      responses:
+        "200":
+          description: Versi ditinjau
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CatalogVersion"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /v1/catalogs/{kind}/versions/{version}/activate:
+    parameters:
+      - {name: kind, in: path, required: true, schema: {$ref: "#/components/schemas/CatalogKind"}}
+      - {name: version, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      operationId: activateCatalogVersion
+      summary: Aktifkan versi ditinjau dan arsipkan yang lama (admin, reauth; penulis tidak boleh mengaktifkan versinya sendiri; audit sinkron)
+      responses:
+        "200":
+          description: Versi aktif
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CatalogVersion"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /v1/catalogs/{kind}/coverage:
+    parameters:
+      - {name: kind, in: path, required: true, schema: {$ref: "#/components/schemas/CatalogKind"}}
+    get:
+      operationId: catalogCoverage
+      summary: Cakupan katalog aktif (mis. entri tanpa teks, rujukan langkah yang hilang)
+      responses:
+        "200":
+          description: Cakupan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CatalogCoverage"}
+  /svc/v1/settings/effective:
+    get:
+      operationId: effectiveSettings
+      summary: Nilai efektif satu lingkup, tanpa rahasia
+      parameters:
+        - {name: scope, in: query, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9_]*$", maxLength: 64}}
+      responses:
+        "200":
+          description: Nilai
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EffectiveSettings"}
+        "404": {$ref: "#/components/responses/Error"}
+  /svc/v1/catalogs/{kind}/active:
+    get:
+      operationId: activeCatalog
+      summary: Dokumen katalog aktif beserta catalog_version dan content_hash
+      parameters:
+        - {name: kind, in: path, required: true, schema: {$ref: "#/components/schemas/CatalogKind"}}
+      responses:
+        "200":
+          description: "Isi dokumen dilebur ke tingkat atas: field `catalog_version` dan `content_hash` ditambahkan ke dokumen"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ActiveCatalog"}
+        "404": {$ref: "#/components/responses/Error"}
+  /svc/v1/channels/policy:
+    get:
+      operationId: svcChannelPolicies
+      summary: Salinan kebijakan kanal (api, notifier)
+      responses:
+        "200":
+          description: Kebijakan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChannelPolicyList"}
+  /svc/v1/secrets/model.api_key:
+    get:
+      operationId: modelApiKey
+      summary: Kunci API model; hanya svc:narrative. Respons tidak boleh dicatat; permintaan dicatat ke audit (asinkron)
+      responses:
+        "200":
+          description: Rahasia
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SecretValue"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Error:
+      description: Galat seragam
+      content:
+        application/json:
+          schema: {$ref: "./common.yaml#/components/schemas/Error"}
+  schemas:
+    CatalogKind:
+      type: string
+      enum: [alert_penjelasan, pola_insiden, temuan_korelasi, langkah, sla, bobot_skor, aturan_android, aturan_peran, aset]
+    SettingSource:
+      type: string
+      enum: [bawaan, berkas, database, env]
+    SettingValue:
+      type: object
+      additionalProperties: false
+      required: [key, value, source, version]
+      properties:
+        key: {type: string}
+        value: {description: "Nilai JSON sesuai tipe kunci pada registri"}
+        source: {$ref: "#/components/schemas/SettingSource"}
+        version: {type: integer, minimum: 0, description: "0 bila belum pernah diubah di database"}
+        updated_by: {type: [string, "null"]}
+        updated_at: {type: [string, "null"], format: date-time}
+        locked: {type: boolean, description: "true bila dikunci variabel lingkungan ASTRIA_*"}
+    SecretStatus:
+      type: object
+      additionalProperties: false
+      required: [key, terisi, version]
+      properties:
+        key: {type: string}
+        terisi: {type: boolean}
+        version: {type: integer, minimum: 0}
+        updated_by: {type: [string, "null"]}
+        updated_at: {type: [string, "null"], format: date-time}
+    SettingList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+              - {$ref: "#/components/schemas/SettingValue"}
+              - {$ref: "#/components/schemas/SecretStatus"}
+    PutSettingRequest:
+      type: object
+      additionalProperties: false
+      required: [value, if_version]
+      properties:
+        value: {description: "Nilai JSON; divalidasi dengan tipe dan batas kunci"}
+        if_version: {type: integer, minimum: 0}
+        alasan: {type: string, maxLength: 500}
+    PutSecretRequest:
+      type: object
+      additionalProperties: false
+      required: [value]
+      properties:
+        value: {type: string, minLength: 1, maxLength: 4096, writeOnly: true}
+    SecretValue:
+      type: object
+      additionalProperties: false
+      required: [key, value]
+      properties:
+        key: {type: string}
+        value: {type: string}
+    ChannelPolicy:
+      type: object
+      additionalProperties: false
+      required: [channel_id, active, max_detail, version]
+      properties:
+        channel_id: {type: string, pattern: "^[a-z][a-z0-9-]*$"}
+        active: {type: boolean}
+        max_detail: {type: string, enum: [ringkas, sedang, penuh]}
+        min_band: {type: string, enum: [RENDAH, SEDANG, TINGGI, KRITIS], description: "Ambang band terendah yang dikirim ke kanal"}
+        version: {type: integer, minimum: 0}
+        updated_by: {type: [string, "null"]}
+        updated_at: {type: [string, "null"], format: date-time}
+    ChannelPolicyList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/ChannelPolicy"}
+    PutChannelPolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [active, max_detail, if_version]
+      properties:
+        active: {type: boolean}
+        max_detail: {type: string, enum: [ringkas, sedang, penuh]}
+        min_band: {type: string, enum: [RENDAH, SEDANG, TINGGI, KRITIS]}
+        if_version: {type: integer, minimum: 0}
+    EffectiveSettings:
+      type: object
+      additionalProperties: false
+      required: [scope, values]
+      properties:
+        scope: {type: string}
+        values: {type: object, additionalProperties: true, description: "kunci lengkap (mis. chat.allow_t2) -> nilai"}
+    CatalogVersion:
+      type: object
+      additionalProperties: false
+      required: [kind, version, status, content_hash, schema_version, created_by]
+      properties:
+        kind: {$ref: "#/components/schemas/CatalogKind"}
+        version: {type: integer, minimum: 1}
+        status: {type: string, enum: [draft, ditinjau, aktif, arsip]}
+        content_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
+        schema_version: {type: string}
+        created_by: {type: string}
+        reviewed_by: {type: [string, "null"]}
+        activated_at: {type: [string, "null"], format: date-time}
+    CatalogVersionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/CatalogVersion"}
+    CreateCatalogDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [content]
+      properties:
+        content: {type: object, description: "Dokumen utuh satu versi katalog; divalidasi dengan skema jenisnya"}
+        schema_version: {type: string, default: "1"}
+    CatalogCoverage:
+      type: object
+      additionalProperties: false
+      required: [kind, catalog_version, complete, issues]
+      properties:
+        kind: {$ref: "#/components/schemas/CatalogKind"}
+        catalog_version: {type: integer}
+        complete: {type: boolean}
+        issues:
+          type: array
+          items: {type: string}
+    ActiveCatalog:
+      type: object
+      additionalProperties: true
+      required: [catalog_version, content_hash]
+      properties:
+        catalog_version: {type: integer, minimum: 1}
+        content_hash: {type: string, pattern: "^sha256:[0-9a-f]{64}$"}
