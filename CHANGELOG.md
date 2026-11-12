@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-12
+
+### Added
+
+- OpenAPI `gateway-internal` 0.1.0 (baru): `POST /events` (termasuk `identity.revoked` sebagai kontrol dengan `channel_id` `*`), `PUT /secrets/{key}`, `POST /whatsapp/masuk`, `GET /status`; autentikasi HMAC per permintaan.
+- `audit-internal` 0.3.0: parameter `recipient` (age, berulang) pada `GET /export`, respons `application/age`, dan galat 400 `EKSPOR_WAJIB_TERENKRIPSI` dan `PENERIMA_TIDAK_DIIZINKAN`. Aditif; ekspor polos tetap sah.
+
+### Changed
+
+- `config-internal` 0.2.0: `PUT /v1/secrets/gateway/{key}` mencantumkan 404 `GW_KUNCI_TIDAK_DIKENAL`, 409 `GW_DIKUNCI_ENV`, dan 422 `GW_EVENT_INVALID` yang diteruskan dari gateway.
+
 ## [0.4.0] - 2026-11-12
 
 ### Added

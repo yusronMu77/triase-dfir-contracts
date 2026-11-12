@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Astria config internal API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     config memegang pengaturan Core yang dapat diubah admin, katalog berversi, kebijakan kanal, dan rahasia Core
     (note app-config). Tidak ada listener publik; hanya jaringan `core`.
@@ -84,6 +84,9 @@ paths:
     put:
       operationId: forwardGatewaySecret
       summary: Teruskan rahasia kanal ke gateway lewat memori tanpa menyimpannya di Core (admin, reauth; audit sinkron)
+      description: |
+        Galat dari gateway diteruskan dengan kode aslinya: `GW_KUNCI_TIDAK_DIKENAL` (404), `GW_DIKUNCI_ENV` (409, kunci dikunci
+        env di gateway), `GW_EVENT_INVALID` (422, nilai tidak valid). Gateway tidak terjangkau atau belum siap: 503.
       requestBody:
         required: true
         content:
@@ -92,6 +95,9 @@ paths:
       responses:
         "204": {description: Diteruskan}
         "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
         "503": {$ref: "#/components/responses/Error"}
   /v1/channels/policy:
     get:
