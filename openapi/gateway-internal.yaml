@@ -1,0 +1,184 @@
+openapi: 3.1.0
+info:
+  title: Astria Gateway internal API
+  version: 0.1.0
+  description: |
+    Endpoint `/internal/v1` Astria Gateway (A10), hanya di listener internal (rancangan: note app-gateway).
+    Autentikasi: HMAC per permintaan (`astria_common.hmac_auth`; header `X-Astria-Service`, `X-Astria-Ts`, `X-Astria-Nonce`,
+    `X-Astria-Sig`, jendela 300 detik, nonce sekali pakai). Tiap jalur membatasi layanan pemanggilnya.
+    Pengecualian: `POST /whatsapp/masuk` dari `wa-bridge` (khusus uji) memakai Bearer token bersama.
+
+    Kode galat: `GW_AUTH_FAILED` dan `GW_REPLAY` (401), `GW_KUNCI_TIDAK_DIKENAL` (404), `GW_CHANNEL_UNKNOWN` (404),
+    `GW_EVENT_DUPLICATE` (409), `GW_DIKUNCI_ENV` (409), `GW_EVENT_INVALID` (422), `GW_NOT_READY` (503).
+    Nilai rahasia tidak pernah dicatat atau dikembalikan.
+servers:
+  - url: http://gateway:8080
+security: [{serviceHmac: []}]
+paths:
+  /internal/v1/events:
+    post:
+      operationId: receiveEvent
+      summary: Terima event siap kirim dari notifier (hanya `notifier`)
+      description: |
+        Amplop berisi payload yang sudah disaring per kanal. `identity.revoked` diterima sebagai event kontrol dengan
+        `channel_id` `*` dan payload `user_id`, `reason`, `revoked_at` saja: semua ikatan kanal aktif milik `user_id`
+        dicabut. `event_id` yang sama dua kali ditolak 409, jadi penerusan ulang idempoten.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/EventIn"}
+      responses:
+        "202":
+          description: Diterima
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EventAccepted"}
+        "401": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/secrets/{key}:
+    put:
+      operationId: putSecret
+      summary: Tulis rahasia kanal (hanya `config`); disimpan terenkripsi AES-256-GCM, nilai tidak dikembalikan
+      description: Kunci yang dikenal `telegram.bot_token` dan `smtp.password`. Nilai sama dengan yang aktif tidak menulis apa pun.
+      parameters:
+        - {name: key, in: path, required: true, schema: {type: string, enum: [telegram.bot_token, smtp.password]}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SecretIn"}
+      responses:
+        "204": {description: Tersimpan}
+        "401": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/whatsapp/masuk:
+    post:
+      operationId: whatsappInbound
+      summary: Pesan teks pribadi dari wa-bridge (khusus uji); diproses seperti perintah Telegram
+      security: [{bridgeToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/WhatsAppIn"}
+      responses:
+        "202":
+          description: Diterima
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id]
+                properties:
+                  id: {type: string}
+        "401": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /internal/v1/status:
+    get:
+      operationId: gatewayStatus
+      summary: Status outbox dan kanal (`notifier`, `config`, `api`)
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GatewayStatus"}
+        "401": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    serviceHmac:
+      type: apiKey
+      in: header
+      name: X-Astria-Sig
+      description: HMAC-SHA256 atas metode, path, timestamp, nonce, dan hash isi; header pendamping X-Astria-Service, X-Astria-Ts, X-Astria-Nonce.
+    bridgeToken:
+      type: http
+      scheme: bearer
+  responses:
+    Error:
+      description: Galat seragam
+      content:
+        application/json:
+          schema: {$ref: "./common.yaml#/components/schemas/Error"}
+  schemas:
+    PayloadValue:
+      description: Skalar, atau daftar teks pendek (mis. `teknik` ATT&CK). Objek bersarang ditolak.
+      oneOf:
+        - {type: string, maxLength: 500}
+        - {type: integer}
+        - {type: number}
+        - {type: boolean}
+        - {type: "null"}
+        - type: array
+          maxItems: 20
+          items: {type: string, maxLength: 40}
+    ChannelPayload:
+      type: object
+      additionalProperties: false
+      required: [channel_id]
+      properties:
+        channel_id: {type: string, pattern: "^(\\*|[a-z][a-z0-9_-]{0,63})$"}
+        payload:
+          type: object
+          maxProperties: 20
+          additionalProperties: {$ref: "#/components/schemas/PayloadValue"}
+    EventIn:
+      type: object
+      additionalProperties: false
+      required: [event_id, type, occurred_at]
+      properties:
+        event_id: {type: string, pattern: "^[A-Za-z0-9._:-]{1,100}$"}
+        type: {type: string, maxLength: 64}
+        occurred_at: {type: string, format: date-time}
+        channels:
+          type: array
+          maxItems: 20
+          items: {$ref: "#/components/schemas/ChannelPayload"}
+    EventAccepted:
+      type: object
+      required: [event_id]
+      properties:
+        event_id: {type: string}
+        identities: {type: integer, minimum: 0, description: "Hanya untuk identity.revoked: jumlah ikatan yang dicabut"}
+    SecretIn:
+      type: object
+      additionalProperties: false
+      required: [value]
+      properties:
+        value: {type: string, minLength: 1, maxLength: 4096, writeOnly: true}
+    WhatsAppIn:
+      type: object
+      additionalProperties: false
+      required: [id, dari, teks, waktu]
+      properties:
+        id: {type: string, pattern: "^[A-Za-z0-9._:-]{1,128}$"}
+        dari: {type: string, pattern: "^[0-9]{8,15}$"}
+        teks: {type: string}
+        waktu: {type: string, format: date-time}
+    GatewayStatus:
+      type: object
+      required: [outbox, telegram, whatsapp, email, public_listener]
+      properties:
+        outbox:
+          type: object
+          required: [pending, sending, sent, dead]
+          properties:
+            pending: {type: integer}
+            sending: {type: integer}
+            sent: {type: integer}
+            dead: {type: integer}
+        oldest_pending_at: {type: [string, "null"], format: date-time}
+        telegram: {type: object}
+        whatsapp: {type: object, properties: {enabled: {type: boolean}}}
+        email: {type: object, properties: {enabled: {type: boolean}}}
+        public_listener: {type: boolean}

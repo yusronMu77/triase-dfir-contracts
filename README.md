@@ -23,6 +23,7 @@ openapi/common.yaml                /health, /ready, /metrics, bentuk galat serag
 openapi/identity-internal.yaml     token layanan EdDSA (HMAC), kunci publik, login, sesi, pengguna, peran, pairing, rotasi kunci
 openapi/audit-internal.yaml        catat sinkron, baca bertahap dengan filter, tugas verifikasi, ekspor JSONL, jangkar
 openapi/config-internal.yaml       pengaturan berlapis, rahasia tulis-saja, kebijakan kanal, katalog berversi, jalur konsumen /svc/v1
+openapi/gateway-internal.yaml      event siap kirim dari notifier (termasuk identity.revoked), rahasia kanal dari config, masuk WhatsApp, status
 gen/python/astria_contracts/       model hasil datamodel-code-generator 0.90.0 (di-commit, JANGAN diedit)
 card/                              kartu v2 (Tahap 1)
 ```

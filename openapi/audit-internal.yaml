@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Astria audit internal API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Jalur sinkron (fail-closed) untuk aksi kritis, baca bertahap, tugas verifikasi rantai, ekspor JSONL, dan jangkar.
     Jalur asinkron memakai event `audit.record` di subjek `astria.audit.record`.
@@ -12,6 +12,7 @@ info:
     harus `admin` atau `dfir` untuk baca; `admin` untuk verifikasi, ekspor, dan membuat jangkar.
     Kode galat khusus: `PAYLOAD_MISMATCH` (409), `PAYLOAD_TIDAK_KANONIK` (422), `PAYLOAD_TERLALU_BESAR` (413),
     `PERAN_TIDAK_CUKUP` (403), `PEMANGGIL_DITOLAK` (403), `TUGAS_TIDAK_DITEMUKAN` (404), `AUDIT_TIDAK_TERSEDIA` (503).
+    Ekspor: `EKSPOR_WAJIB_TERENKRIPSI` dan `PENERIMA_TIDAK_DIIZINKAN` (keduanya 400).
 servers:
   - url: http://audit:8000
 security: [{serviceToken: []}]
@@ -101,11 +102,25 @@ paths:
       parameters:
         - {name: from_seq, in: query, schema: {type: integer, minimum: 1, default: 1}}
         - {name: to_seq, in: query, schema: {type: integer, minimum: 1}}
+        - name: recipient
+          in: query
+          description: |
+            Penerima age (kunci publik `age1...`), boleh diulang. Bila ada, ekspor dienkripsi (format age) ke semua penerima.
+            Bila layanan memakai daftar penerima yang diizinkan (`ASTRIA_EXPORT_AGE_RECIPIENTS`), ekspor tanpa penerima
+            ditolak `EKSPOR_WAJIB_TERENKRIPSI` dan penerima di luar daftar ditolak `PENERIMA_TIDAK_DIIZINKAN`.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 20
+            items: {type: string, pattern: "^age1[a-z0-9]{58}$"}
       responses:
         "200":
-          description: JSONL
+          description: JSONL polos, atau berkas age bila `recipient` diberikan
           content:
             application/x-ndjson: {}
+            application/age: {}
+        "400": {$ref: "#/components/responses/Error"}
         "403": {$ref: "#/components/responses/Error"}
   /internal/v1/anchor/latest:
     get:
