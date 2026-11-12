@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
+### Added
+
+- Event `identity.revoked` v1 (subjek `astria.identity.revoked`, penerbit identity, konsumen notifier dan api): `user_id`, `reason` (`akun_nonaktif`, `peran_berubah`, `kata_sandi_diganti`, `sesi_dicabut`), `revoked_at`, dan `roles_after` opsional. Tanpa username, token, atau teks bebas.
+- Event `config.changed` v1 (subjek `astria.config.changed`, penerbit config, konsumen api, triage, narrative, ticket, notifier, scheduler, ingest): `scope` (`setting`, `secret`, `catalog`, `channel_policy`) dengan `key`, `kind`, `value_version`, `catalog_version`, `content_hash` opsional. Tidak pernah memuat nilai pengaturan atau rahasia.
+- OpenAPI `identity-internal` 0.2.0: login, logout, reauth, introspeksi sesi, pengguna (daftar, buat, ubah, peran, cabut sesi), kode pairing (terbit, klaim), rotasi kunci layanan. `Actor` (klaim `act`) mendapat `reauth_at` opsional yang diisi identity dari sesi.
+- OpenAPI `audit-internal` 0.2.0: tugas verifikasi (`POST` dengan `wait_ms`, `GET /verify-jobs/{id}`), ekspor JSONL, jangkar (`/anchor/latest`, `/anchors`), filter `actor`, `action`, `target_type`, `target_id` pada baca bertahap. `VerifyResult` mendapat `job_id`, `anchor_match`, `started_at`, `finished_at`; `status` menjadi `berjalan`, `selesai`, atau `gagal`.
+- OpenAPI `config-internal` 0.1.0 (baru): pengaturan efektif dan ubah, rahasia tulis-saja, teruskan rahasia kanal ke gateway, kebijakan kanal, katalog berversi (draf, tinjau, aktivasi, cakupan), dan jalur konsumen `/svc/v1` (pengaturan efektif, katalog aktif, kebijakan kanal, kunci API model).
+- Kebutuhan dari identity#4 (identity, audit, config: versi penuh) dan daftar event api.
+
+### Changed
+
+- `audit-internal` `VerifyResult`: `ok` dan `to_seq` boleh `null` (selama berjalan atau gagal); `required` menjadi `status`, `from_seq`, `checked`. Pemanggil Tahap 0 yang membaca `ok` pada respons 200 tidak terpengaruh.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added

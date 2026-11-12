@@ -10,7 +10,7 @@
 
 Kontrak antarlayanan Astria: JSON Schema event, OpenAPI internal, dan model Pydantic hasil generasi (`astria_contracts`).
 
-> Status: Tahap 1, v0.3.0. Repo ini adalah submodule dari workspace `triase-dfir` (folder `contracts/`). Rancangan: `notes/2026-11-06-triase-dfir-app-common-dan-infra.md` bagian 3 di repo root. Lajur developer: 3; setiap perubahan butuh dua peninjau (pemilik dan konsumen).
+> Status: Tahap 2, v0.4.0. Repo ini adalah submodule dari workspace `triase-dfir` (folder `contracts/`). Rancangan: `notes/2026-11-06-triase-dfir-app-common-dan-infra.md` bagian 3 di repo root. Lajur developer: 3; setiap perubahan butuh dua peninjau (pemilik dan konsumen).
 
 ## Isi
 
@@ -20,8 +20,9 @@ events/<type>.schema.json          skema `data` per jenis event
 events/examples/<type>.json        satu amplop valid per jenis (wajib; dipakai uji kontrak konsumen)
 events/catalog.json                jenis -> versi, subjek NATS, penerbit, konsumen; nama stream dan jendela duplikat
 openapi/common.yaml                /health, /ready, /metrics, bentuk galat seragam
-openapi/identity-internal.yaml     token layanan EdDSA (HMAC) dan kunci publik (Tahap 0)
-openapi/audit-internal.yaml        catat sinkron, baca bertahap, verifikasi rantai (Tahap 0)
+openapi/identity-internal.yaml     token layanan EdDSA (HMAC), kunci publik, login, sesi, pengguna, peran, pairing, rotasi kunci
+openapi/audit-internal.yaml        catat sinkron, baca bertahap dengan filter, tugas verifikasi, ekspor JSONL, jangkar
+openapi/config-internal.yaml       pengaturan berlapis, rahasia tulis-saja, kebijakan kanal, katalog berversi, jalur konsumen /svc/v1
 gen/python/astria_contracts/       model hasil datamodel-code-generator 0.90.0 (di-commit, JANGAN diedit)
 card/                              kartu v2 (Tahap 1)
 ```
@@ -34,6 +35,8 @@ card/                              kartu v2 (Tahap 1)
 | `narration.retry_requested` | 1 | `astria.narration.retry_requested` | verifier | narrative |
 | `card.verified` | 1 | `astria.card.verified` | verifier | ticket |
 | `digest.published` | 1 | `astria.digest.published` | scheduler | notifier, api |
+| `identity.revoked` | 1 | `astria.identity.revoked` | identity | notifier, api |
+| `config.changed` | 1 | `astria.config.changed` | config | api, triage, narrative, ticket, notifier, scheduler, ingest |
 | `audit.record` | 1 | `astria.audit.record` | semua | audit |
 
 ## Aturan perubahan

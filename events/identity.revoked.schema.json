@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astria.local/contracts/events/identity.revoked.schema.json",
+  "title": "IdentityRevoked",
+  "description": "data untuk identity.revoked v1. Penerbit: identity. Konsumen: notifier (meneruskan ke gateway untuk menghapus ikatan kanal) dan api (membuang cache sesi dan menutup SSE). Terbit saat akun dinonaktifkan, peran diganti atau dicabut, kata sandi diganti oleh admin, atau semua sesi dicabut. Tidak memuat username, token, atau alasan bebas.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["user_id", "reason", "revoked_at"],
+  "properties": {
+    "user_id": {"type": "string", "pattern": "^usr_[A-Za-z0-9]+$"},
+    "reason": {"type": "string", "enum": ["akun_nonaktif", "peran_berubah", "kata_sandi_diganti", "sesi_dicabut"]},
+    "revoked_at": {"type": "string", "format": "date-time"},
+    "roles_after": {
+      "description": "Peran pengguna sesudah perubahan; kosong bila akun nonaktif. Hanya diisi untuk reason peran_berubah.",
+      "type": "array",
+      "items": {"type": "string", "enum": ["analis", "dfir", "pimpinan", "admin"]},
+      "uniqueItems": true
+    }
+  }
+}
