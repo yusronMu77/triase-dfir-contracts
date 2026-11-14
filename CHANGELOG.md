@@ -6,6 +6,10 @@
 
 - OpenAPI `ingest-internal` 0.1.0 (baru): `POST /svc/v1/imports` (`adapter`, `path_ref`, `expected_sha256` opsional; 202 job baru, 200 berkas sudah diimpor) dan `GET /svc/v1/imports/{job_id}`, dengan daftar kode tolak. Menyelaraskan api dan ingest (api#12: api dulu memanggil `/svc/v1/ingest/jobs` yang tidak ada).
 
+### Fixed
+
+- `scripts/generate.py` di Windows menghasilkan CRLF sehingga cek CI "Hasil generasi sama dengan sumber kontrak" selalu gagal di CI lokal; ruff format kini dipaksa `line-ending = "lf"`.
+
 ## [0.5.0] - 2026-11-12
 
 ### Added

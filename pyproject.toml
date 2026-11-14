@@ -35,6 +35,10 @@ testpaths = ["tests"]
 line-length = 120
 target-version = "py314"
 
+[tool.ruff.format]
+# LF juga di Windows: hasil scripts/generate.py harus sama byte demi byte dengan gen/ yang di-commit (cek CI).
+line-ending = "lf"
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "W"]
 ignore = ["S101"]
