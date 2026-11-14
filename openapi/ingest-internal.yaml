@@ -1,0 +1,134 @@
+openapi: 3.1.0
+info:
+  title: Astria ingest internal API (impor)
+  version: 0.1.0
+  description: |
+    Impor berkas alert dari folder impor server (`import_root`, mis. `/data/import`) dan status job impor.
+    Berkas tidak diunggah lewat API: pemanggil hanya mengirim path relatif terhadap folder impor.
+    Autentikasi: token layanan EdDSA dengan `aud = svc:ingest`. Pemanggil impor dibatasi setting `import_callers`
+    (bawaan `svc:api`, `svc:seed`, `svc:devtools`); selain itu 403 `PEMANGGIL_DITOLAK`.
+
+    Impor idempoten per SHA-256 isi berkas: berkas yang sama mengembalikan job lama dengan 200 dan `created: false`.
+    Kode tolak (422 kecuali disebut lain): `PATH_TIDAK_VALID`, `PATH_TIDAK_ADA`, `PATH_SYMLINK`, `PATH_BUKAN_BERKAS`,
+    `PATH_DI_LUAR_ROOT`, `BERKAS_TIDAK_TERBACA`, `BERKAS_BERUBAH`, `SHA256_TIDAK_COCOK`, `FORMAT_TIDAK_VALID`,
+    `ENCODING_TIDAK_DIDUKUNG`, `TERLALU_BANYAK_BARIS`, `ADAPTER_TIDAK_DIKENAL`; `BERKAS_TERLALU_BESAR` (413).
+    Pesan galat ingest dapat memuat detail server; api meneruskan kodenya saja dengan pesan miliknya sendiri.
+
+    Bagian lain ingest (`POST /svc/v1/evidence:batch`, `GET /svc/v1/jobs/{job_id}/alerts`) belum dijelaskan di sini.
+servers:
+  - url: http://ingest:8000
+security: [{serviceToken: []}]
+paths:
+  /svc/v1/imports:
+    post:
+      operationId: createImport
+      summary: Mulai impor satu berkas dari folder impor server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ImportRequest"}
+      responses:
+        "202":
+          description: Job baru dibuat dan diantrekan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ImportResponse"}
+        "200":
+          description: Isi berkas sudah pernah diimpor; job lama dikembalikan (`created` false)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ImportResponse"}
+        "400": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "413": {$ref: "#/components/responses/Error"}
+        "422": {$ref: "#/components/responses/Error"}
+        "503": {$ref: "#/components/responses/Error"}
+  /svc/v1/imports/{job_id}:
+    get:
+      operationId: getImport
+      summary: Status dan statistik job impor
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string, pattern: "^ING-[0-9]{8}-[0-9A-F]{8}$"}
+      responses:
+        "200":
+          description: Job ditemukan
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/JobResponse"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Error:
+      description: Galat seragam
+      content:
+        application/json:
+          schema: {$ref: "./common.yaml#/components/schemas/Error"}
+  schemas:
+    ImportRequest:
+      type: object
+      additionalProperties: false
+      required: [adapter, path_ref]
+      properties:
+        adapter: {type: string, enum: [hayabusa]}
+        path_ref:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Path relatif terhadap folder impor server, mis. `chains/svc-backup.jsonl`
+        expected_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: Opsional. Bila berbeda dari SHA-256 isi berkas, impor ditolak 422 `SHA256_TIDAK_COCOK` tanpa job.
+    JobStatus:
+      type: string
+      enum: [queued, running, completed, completed_with_errors, failed]
+    JobStats:
+      type: object
+      properties:
+        total_lines: {type: integer, minimum: 0}
+        valid: {type: integer, minimum: 0}
+        blank: {type: integer, minimum: 0}
+        rejected: {type: integer, minimum: 0}
+        error_samples:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [record_no, code]
+            properties:
+              record_no: {type: integer, minimum: 1}
+              code: {type: string}
+    ImportResponse:
+      type: object
+      required: [job_id, source_id, file_sha256, status, created, stats]
+      properties:
+        job_id: {type: string, pattern: "^ING-[0-9]{8}-[0-9A-F]{8}$"}
+        source_id: {type: string}
+        file_sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        status: {$ref: "#/components/schemas/JobStatus"}
+        created: {type: boolean}
+        stats: {$ref: "#/components/schemas/JobStats"}
+    JobResponse:
+      type: object
+      required: [job_id, source_id, file_sha256, status, stats, last_record_no, error_code, created_at, started_at, finished_at]
+      properties:
+        job_id: {type: string, pattern: "^ING-[0-9]{8}-[0-9A-F]{8}$"}
+        source_id: {type: string}
+        file_sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        status: {$ref: "#/components/schemas/JobStatus"}
+        stats: {$ref: "#/components/schemas/JobStats"}
+        last_record_no: {type: integer, minimum: 0}
+        error_code: {type: [string, "null"]}
+        created_at: {type: [string, "null"], format: date-time}
+        started_at: {type: [string, "null"], format: date-time}
+        finished_at: {type: [string, "null"], format: date-time}
